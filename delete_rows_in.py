@@ -4,9 +4,9 @@ import pymysql
 from sqlalchemy import create_engine
 from sqlalchemy.engine.url import URL
 from sqlalchemy.exc import InternalError
-from library.logging_pack import logger
 
 from library import cf
+from library.logging_pack import logger
 
 pymysql.install_as_MySQLdb()
 
@@ -31,6 +31,7 @@ table_names = engine.execute(
 )
 for name, in table_names:
     logger.debug(f"daily_craw.{name}에서 삭제 중..")
+    name = name.replace('%', '%%')
     engine.execute(f"DELETE FROM daily_craw.`{name}` WHERE date >= '{target_date}'")  # daily_craw의 테이블에서 해당 날짜 보다 최신인 행들을 삭제
 
 try:

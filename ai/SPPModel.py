@@ -45,7 +45,7 @@ def evaluate(data, model):
 
 # 예측 주가를 계산 해주는 함수
 def predict(data, model, n_steps=100):
-    last_sequence = data["last_sequence"][:n_steps]
+    last_sequence = data["last_sequence"][-n_steps:]
     column_scaler = data["column_scaler"]
     # last_sequence를 reshape 합니다
     last_sequence = last_sequence.reshape((last_sequence.shape[1], last_sequence.shape[0]))

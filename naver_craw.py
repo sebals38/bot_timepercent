@@ -1,4 +1,4 @@
-# version 1.3.1
+# version 1.3.2
 # *단위: 억원, %, 배, 주 * 분기: 순액기준
 # 총 크롤링한 종목의 수 : select count(*) from (select * from naver group by code) a
 
@@ -117,7 +117,6 @@ class NAVERCrawl:
         except Exception as e:
             return []
 
-
     def get_latest_index(self):
         """
          naver 테이블에서 가장 최근에 받은 종목의 index를 반환
@@ -149,13 +148,12 @@ class NAVERCrawl:
         count = latest_index # print 용 변수
         ####################################################
 
-        # self.stock_item_all[latest_index + 1:] : 가장 최근 받은 종목 이후로 시작
-        for stock_code in self.stock_item_all[latest_index + 1:]:
+        # self.stock_item_all[latest_index:] : 가장 최근 받은 종목 이후로 시작
+        for stock_code in self.stock_item_all[latest_index:]:
             count += 1
             code = stock_code[0]
             code_name = stock_code[1]
             print("++++++++++++++ {} ++++++++++++++ {} / {}".format(code_name, count, num))
-
 
             df = self.get_fin_info(code)
 

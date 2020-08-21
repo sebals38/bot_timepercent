@@ -115,7 +115,7 @@ class Openapi(QAxWidget):
 
         time.sleep(0.2)
         # data 비어있는 경우
-        if self.ohlcv['date'][0] == '':
+        if len(self.ohlcv) == 0:
             return []
 
         if self.ohlcv['date'] == '':

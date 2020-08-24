@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 from sqlalchemy import Integer, Text
 
-ver = "#version 1.3.3"
+ver = "#version 1.3.4"
 print(f"collector_api Version: {ver}")
 
 import numpy
@@ -253,7 +253,7 @@ class collector_api():
             kospi=self.dc.cc.code_df_kospi,
             kosdaq=self.dc.cc.code_df_kosdaq,
             konex=self.dc.cc.code_df_konex,
-            insinserity=self.dc.cc.code_df_insincerity,
+            insincerity=self.dc.cc.code_df_insincerity,
             managing=self.dc.cc.code_df_managing
         )
 
@@ -264,8 +264,8 @@ class collector_api():
         for type, data in stock_data.items():
             self._stock_to_sql(data, type)
 
-        # stock_insinserity와 stock_managing의 종목은 따로 중복하여 넣지 않음
-        excluded_tables = ['insinserity', 'managing']
+        # stock_insincerity와 stock_managing의 종목은 따로 중복하여 넣지 않음
+        excluded_tables = ['insincerity', 'managing']
         stock_item_all_df = pd.concat(
             [v for k, v in stock_data.items() if k not in excluded_tables], ignore_index=True
         ).drop_duplicates(subset=['code', 'code_name'])

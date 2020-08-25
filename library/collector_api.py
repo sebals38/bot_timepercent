@@ -267,7 +267,8 @@ class collector_api():
         # stock_insincerity와 stock_managing의 종목은 따로 중복하여 넣지 않음
         excluded_tables = ['insincerity', 'managing']
         stock_item_all_df = pd.concat(
-            [v for k, v in stock_data.items() if k not in excluded_tables], ignore_index=True
+            [v[v['code_name'].map(len) > 0] for k, v in stock_data.items() if k not in excluded_tables],
+            ignore_index=True
         ).drop_duplicates(subset=['code', 'code_name'])
         self._stock_to_sql(stock_item_all_df, "item_all")
 

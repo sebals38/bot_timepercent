@@ -22,8 +22,8 @@ MARKET_KOSDAQ = 10
 class collector_api():
     def __init__(self):
         self.open_api = open_api()
-        self.variable_setting()
         self.engine_JB = self.open_api.engine_JB
+        self.variable_setting()
         self.kind = KINDCrawler()
 
     def variable_setting(self):

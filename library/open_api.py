@@ -1,4 +1,4 @@
-ver = "#version 1.3.3"
+ver = "#version 1.3.4"
 print(f"open_api Version: {ver}")
 
 from library.simulator_func_mysql import *
@@ -871,7 +871,7 @@ class open_api(QAxWidget):
         # logger.debug("codename_to_code!!!")
 
         sql = "select code from stock_item_all where code_name='%s'"
-        rows = self.engine_daily_buy_list.execute(sql % (codename,)).fetchall()
+        rows = self.engine_daily_buy_list.execute(sql % (codename)).fetchall()
         # 데이타 Fetch
         # rows 는 list안에 튜플이 있는 [()] 형태로 받아온다
 
@@ -881,8 +881,8 @@ class open_api(QAxWidget):
         logger.debug("code를 찾을 수 없다!! name이 긴놈이다!!!!")
         logger.debug(codename)
 
-        sql = "select code from stock_item_all where code_name like '%s'"
-        self.engine_daily_buy_list.execute(sql % (codename + "%%"))
+        sql = f"select code from stock_item_all where code_name like '{codename}%'"
+        rows = self.engine_daily_buy_list.execute(sql).fetchall()
 
         if len(rows) != 0:
             return rows[0][0]

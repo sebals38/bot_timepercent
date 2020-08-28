@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 from sqlalchemy import Integer, Text
 
-ver = "#version 1.3.5"
+ver = "#version 1.3.6"
 print(f"collector_api Version: {ver}")
 
 import numpy
@@ -222,7 +222,6 @@ class collector_api():
                         f"코드: {KIND_info.code}"
                     )
 
-
         stock_df['code_name'] = name_list
         stock_df['check_item'] = 0
         if type in checking_stocks:
@@ -236,6 +235,7 @@ class collector_api():
         dtypes['check_item'] = Integer  # check_item만 int로 변경
 
         stock_df.to_sql(f'stock_{type}', self.open_api.engine_daily_buy_list, if_exists='replace', dtype=dtypes)
+        return stock_df
 
     def get_code_list(self):
         self.dc.cc.get_item()
@@ -261,8 +261,8 @@ class collector_api():
             stock_data['etf'] = DataFrame([(c, '') for c in self._get_code_list_by_market(8) if c],
                                           columns=['code', 'code_name'])
 
-        for type, data in stock_data.items():
-            self._stock_to_sql(data, type)
+        for _type, data in stock_data.items():
+            stock_data[_type] = self._stock_to_sql(data, _type)
 
         # stock_insincerity와 stock_managing의 종목은 따로 중복하여 넣지 않음
         excluded_tables = ['insincerity', 'managing']
@@ -271,6 +271,23 @@ class collector_api():
             ignore_index=True
         ).drop_duplicates(subset=['code', 'code_name'])
         self._stock_to_sql(stock_item_all_df, "item_all")
+
+        ### stock_item_all이 제대로 생성되는지 확인하는 코드
+        # union_frags = []
+        # alias_num = 0
+        # for _type, data in stock_data.items():
+        #     if _type not in excluded_tables:
+        #         union_frags.append(f"SELECT a{alias_num}.code_name FROM daily_buy_list.stock_{_type} a{alias_num}")
+        #         alias_num += 1
+        # union_query = '\nUNION ALL\n'.join(union_frags)
+        # testing_query = f"SELECT count(code_name) FROM ({union_query}) b " \
+        #                 f"WHERE code_name != '' or code_name != null"
+        #
+        # stock_union_count = self.engine_JB.execute(testing_query).fetchall()
+        # sia_count = self.engine_JB.execute(f"SELECT count(*) FROM daily_buy_list.stock_item_all").fetchall()
+        #
+        # assert sia_count == stock_union_count, "stock_item_all does not contain all data."
+        ###
 
         sql = "UPDATE setting_data SET code_update='%s' limit 1"
         self.engine_JB.execute(sql % (self.open_api.today))

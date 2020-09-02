@@ -1,7 +1,7 @@
 lxml
 pymysql
 selenium
-numpy
+numpy<1.19.0
 sqlalchemy
 pandas
 dart_fss
@@ -10,5 +10,5 @@ cryptography
 
 matplotlib
 sklearn
-tensorflow
+tensorflow==2.3.0
 keras

@@ -29,7 +29,7 @@ logger.setLevel(logging.DEBUG)
 
 stream_handler = logging.StreamHandler()
 
-file_handler = TimedRotatingFileHandler(file_path, when="midnight")
+file_handler = TimedRotatingFileHandler(file_path, when="midnight", encoding='utf-8')
 
 # formmater 생성
 formatter = logging.Formatter('[%(levelname)s|%(filename)s:%(lineno)s] %(asctime)s > %(message)s')

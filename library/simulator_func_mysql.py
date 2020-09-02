@@ -1,4 +1,4 @@
-ver = "#version 1.3.2"
+ver = "#version 1.3.3"
 print(f"simulator_func_mysql Version: {ver}")
 import sys
 is_64bits = sys.maxsize > 2**32
@@ -8,6 +8,7 @@ else:
     print('32bit 환경입니다.')
 
 from sqlalchemy import event
+from sqlalchemy.exc import ProgrammingError
 
 from library.daily_crawler import *
 import pymysql.cursors
@@ -893,6 +894,16 @@ class simulator_func_mysql:
             else:
                 # check_item 컬럼에 0 으로 setting
                 df_realtime_daily_buy_list['check_item'] = int(0)
+                if self.engine_simulator.has_table('realtime_daily_buy_list'):
+                    checked_items = self.engine_simulator.execute("""
+                        SELECT code FROM realtime_daily_buy_list WHERE check_item = 1
+                    """).fetchall()
+
+                    for r in checked_items:
+                        index = df_realtime_daily_buy_list.loc[df_realtime_daily_buy_list['code'] == r.code].index
+                        if not index.empty:
+                            df_realtime_daily_buy_list.loc[index[0], 'check_item'] = 1
+
                 df_realtime_daily_buy_list.to_sql('realtime_daily_buy_list', self.engine_simulator, if_exists='replace')
 
                 # 현재 보유 중인 종목들은 삭제

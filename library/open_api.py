@@ -1,4 +1,4 @@
-ver = "#version 1.3.4"
+ver = "#version 1.3.5"
 print(f"open_api Version: {ver}")
 
 from library.simulator_func_mysql import *
@@ -44,6 +44,7 @@ class open_api(QAxWidget):
         # openapi 호출 횟수를 저장하는 변수
         self.rq_count = 0
         self.date_setting()
+        self.tr_loop_count = 0
 
         # openapi연동
         self._create_open_api_instance()
@@ -69,6 +70,7 @@ class open_api(QAxWidget):
 
         # 여기서 invest_unit 설정함
         self.sf_variable_setting()
+        self.ohlcv = defaultdict(list)
 
     # 날짜 세팅
     def date_setting(self):
@@ -303,6 +305,7 @@ class open_api(QAxWidget):
 
     def comm_rq_data(self, rqname, trcode, next, screen_no):
         self.exit_check()
+        self.tr_loop_count += 1
         self.dynamicCall("CommRqData(QString, QString, int, QString", rqname, trcode, next, screen_no)
 
         self.tr_event_loop = QEventLoop()
@@ -365,11 +368,19 @@ class open_api(QAxWidget):
             # logger.debug("opt10080_req!!!")
             # logger.debug("Get an de_deposit!!!")
             self._opt10080(rqname, trcode)
+        elif rqname == "send_order_req":
+            pass
+        else:
+            logger.debug(f'non existence code {rqname}, {trcode}')
         # except Exception as e:
         #     logger.critical(e)
 
+        if rqname != 'send_order_req':
+            self.tr_loop_count -= 1
         try:
-            self.tr_event_loop.exit()
+            if self.tr_loop_count <= 0:
+                self.tr_event_loop.exit()
+                self.tr_loop_count = 0
         except AttributeError:
             pass
 
@@ -773,6 +784,7 @@ class open_api(QAxWidget):
     # order_no  – 원주문번호
 
     def _opt10080(self, rqname, trcode):
+        logger.debug('_opt10080')
         data_cnt = self._get_repeat_cnt(trcode, rqname)
         for i in range(data_cnt):
             date = self._get_comm_data(trcode, rqname, i, "체결시간")
@@ -792,6 +804,11 @@ class open_api(QAxWidget):
 
     # trader가 호출 할때는 collector_opt10081과 다르게 1회만 _get_comm_data 호출 하면 된다.
     def _opt10081(self, rqname, trcode):
+        code = self._get_comm_data(trcode, rqname, 0, "종목코드")
+        if code != self.get_today_buy_list_code:
+            logger.critical(
+                f'_opt10081: ({code}, {self.get_today_buy_list_code})'
+            )
         try:
             logger.debug("_opt10081!!!")
             date = self._get_comm_data(trcode, rqname, 0, "일자")
@@ -860,7 +877,6 @@ class open_api(QAxWidget):
     def get_chejan_data(self, fid):
         # logger.debug("get_chejan_data!!!")
         try:
-            self.exit_check()
             ret = self.dynamicCall("GetChejanData(int)", fid)
             return ret
         except Exception as e:
@@ -1031,7 +1047,7 @@ class open_api(QAxWidget):
                 logger.debug("realtime_daily_buy_list 생겼지만 아직 data가 없다!!!!! ")
                 return
         else:
-            logger.debug("retaltime_daily_buy_list 없다 !! ")
+            logger.debug("realtime_daily_buy_list 없다 !! ")
             return
 
 

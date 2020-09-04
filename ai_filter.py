@@ -1,15 +1,22 @@
-# version 0.1.1
+# version 0.1.2
 import datetime
 import sys
 
 import numpy as np
 import pandas as pd
 import pymysql
+from sqlalchemy.event import listen
+from sqlalchemy.pool import Pool
 from sqlalchemy.exc import InternalError, ProgrammingError
 from tensorflow.keras.callbacks import EarlyStopping
 
 from ai.SPPModel import load_data, create_model, evaluate, predict, DataNotEnough
 from library import cf
+from library.open_api import setup_sql_mod
+
+listen(Pool, 'connect', setup_sql_mod)
+listen(Pool, 'first_connect', setup_sql_mod)
+
 
 # 모의투자, 실전투자 일때만 들어오는 함수
 def filter_by_ai(db_name, simul_num):

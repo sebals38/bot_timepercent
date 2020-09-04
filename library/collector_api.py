@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 from sqlalchemy import Integer, Text
 
-ver = "#version 1.3.6"
+ver = "#version 1.3.7"
 print(f"collector_api Version: {ver}")
 
 import numpy
@@ -31,7 +31,6 @@ class collector_api():
         self.dc = daily_crawler(self.open_api.cf.real_db_name, self.open_api.cf.real_daily_craw_db_name,
                                 self.open_api.cf.real_daily_buy_list_db_name)
         self.dbl = daily_buy_list()
-        self.db_check()
 
     # 콜렉팅을 실행하는 함수
     def code_update_check(self):
@@ -906,15 +905,4 @@ class collector_api():
         # # balance
         self.db_to_jango()
 
-    def db_check(self):
-        check_list = ['daily_craw', 'daily_buy_list', 'min_craw']
-        sql = "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA"
-        rows = self.engine_JB.execute(sql).fetchall()
-        db_list = [n.SCHEMA_NAME for n in rows]
-        create_db_tmp = "CREATE DATABASE {}"
-        for check_name in check_list:
-            if check_name not in db_list:
-                logger.debug(f'{check_name} DB가 존재하지 않아 생성 중...')
-                create_db_sql = create_db_tmp.format(check_name)
-                self.engine_JB.execute(create_db_sql)
-                logger.debug(f'{check_name} 생성 완료')
+

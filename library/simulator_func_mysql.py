@@ -894,6 +894,9 @@ class simulator_func_mysql:
             else:
                 # check_item 컬럼에 0 으로 setting
                 df_realtime_daily_buy_list['check_item'] = int(0)
+
+                # 영상 촬영 후 추가 된 코드입니다. --------------------------------
+                # 중복 매수 방지를 강화한 코드를 추가
                 if self.engine_simulator.has_table('realtime_daily_buy_list'):
                     checked_items = self.engine_simulator.execute("""
                         SELECT code FROM realtime_daily_buy_list WHERE check_item = 1
@@ -903,6 +906,7 @@ class simulator_func_mysql:
                         index = df_realtime_daily_buy_list.loc[df_realtime_daily_buy_list['code'] == r.code].index
                         if not index.empty:
                             df_realtime_daily_buy_list.loc[index[0], 'check_item'] = 1
+                # ----------------------------------------------------------------
 
                 df_realtime_daily_buy_list.to_sql('realtime_daily_buy_list', self.engine_simulator, if_exists='replace')
 

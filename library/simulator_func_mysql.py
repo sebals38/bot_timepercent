@@ -836,6 +836,9 @@ class simulator_func_mysql:
             realtime_daily_buy_list = self.engine_daily_buy_list.execute(sql).fetchall()
 
         ######################################################################################################################################################################################
+        else:
+            print("self.db_to_realtime_daily_buy_list_num 설정이 비었습니다. variable_setting 함수에서 self.db_to_realtime_daily_buy_list_num 을 확인해주세요.")
+            sys.exit(1)
         # realtime_daily_buy_list 에 종목이 하나라도 있다면, 즉 매수할 종목이 하나라도 있다면 아래 로직을 들어간다.
         if len(realtime_daily_buy_list) > 0:
             # realtime_daily_buy_list 라는 리스트를 df_realtime_daily_buy_list 라는 데이터프레임으로 변환하는 과정
@@ -1391,7 +1394,8 @@ class simulator_func_mysql:
            sell_list = self.engine_simulator.execute(sql % (self.diff_point * (-1), self.losscut_point)).fetchall()
         ##################################################################################################################################################################################################################
         else:
-            print("self.sell_list_num 설정이 비었다!!!!")
+            print("self.sell_list_num 설정이 비었습니다. variable_setting 함수에서 self.sell_list_num을 확인해주세요.")
+            sys.exit(1)
 
         return sell_list
 

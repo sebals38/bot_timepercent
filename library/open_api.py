@@ -1,4 +1,4 @@
-ver = "#version 1.3.6"
+ver = "#version 1.3.7"
 print(f"open_api Version: {ver}")
 
 from library.simulator_func_mysql import *
@@ -17,7 +17,7 @@ import re
 import pandas as pd
 import os
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, Text
 from sqlalchemy.pool import Pool
 
 import pymysql
@@ -46,6 +46,10 @@ def setup_sql_mod(dbapi_connection, connection_record):
 
 event.listen(Pool, 'connect', setup_sql_mod)
 event.listen(Pool, 'first_connect', setup_sql_mod)
+
+
+class RateLimitExceeded(BaseException):
+    pass
 
 
 class open_api(QAxWidget):
@@ -328,11 +332,15 @@ class open_api(QAxWidget):
     def comm_rq_data(self, rqname, trcode, next, screen_no):
         self.exit_check()
         self.tr_loop_count += 1
-        self.dynamicCall("CommRqData(QString, QString, int, QString", rqname, trcode, next, screen_no)
-        self.call_time = datetime.datetime.now()
-        self.tr_event_loop = QEventLoop()
+        ret = self.dynamicCall("CommRqData(QString, QString, int, QString", rqname, trcode, next, screen_no)
+        if ret == -200:
+            raise RateLimitExceeded('요청제한 횟수를 초과하였습니다.')
 
-        self.tr_event_loop.exec_()
+        self.call_time = datetime.datetime.now()
+
+        if ret == 0:
+            self.tr_event_loop = QEventLoop()
+            self.tr_event_loop.exec_()
 
     def _get_comm_data(self, code, field_name, index, item_name):
         # logger.debug('calling GetCommData...')
@@ -514,7 +522,9 @@ class open_api(QAxWidget):
         # 컬럼 중에 nan 값이 있는 경우 0으로 변경 -> 이렇게 안하면 아래 데이터베이스에 넣을 때
         # AttributeError: 'numpy.int64' object has no attribute 'translate' 에러 발생
         self.sf.df_all_item = self.sf.df_all_item.fillna(0)
-        self.sf.df_all_item.to_sql('all_item_db', self.engine_JB, if_exists='append')
+        self.sf.df_all_item.to_sql('all_item_db', self.engine_JB, if_exists='append', dtype={
+            'code_name': Text()
+        })
 
     def check_balance(self):
 
@@ -1548,7 +1558,7 @@ class open_api(QAxWidget):
     def _opw00001(self, rqname, trcode):
         logger.debug("_opw00001!!!")
         try:
-            self.d2_deposit_before_format = self._get_comm_data(trcode, rqname, 0, "d+2추정예수금")
+            self.d2_deposit_before_format = self._get_comm_data(trcode, rqname, 0, "d+2출금가능금액")
             self.d2_deposit = self.change_format(self.d2_deposit_before_format)
             logger.debug("예수금!!!!")
             logger.debug(self.d2_deposit_before_format)

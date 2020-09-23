@@ -113,7 +113,13 @@ class collector_api():
             sql = "UPDATE setting_data SET today_buy_list='%s' limit 1"
             self.engine_JB.execute(sql % (self.open_api.today))
         else:
-            logger.debug("daily_buy_list DB에 {} 테이블이 없습니다. jackbot DB에 realtime_daily_buy_list 테이블을 생성 할 수 없습니다. (주말에는 생성 불가 - daily_buy_list에 날짜 테이블을 만들지 않기 때문) ".format(self.open_api.today))
+            logger.debug(
+                """daily_buy_list DB에 {} 테이블이 없습니다. jackbot DB에 realtime_daily_buy_list 테이블을 생성 할 수 없습니다.
+                realtime_daily_buy_list는 daily_buy_list DB 안에 오늘 날짜 테이블이 만들어져야 생성이 됩니다.
+                realtime_daily_buy_list 테이블을 생성할 수 없는 이유는 아래와 같습니다.
+                1. 장이 열리지 않은 날 혹은 15시 30분 ~ 23시 59분 사이에 콜렉터를 돌리지 않은 경우 
+                2. 콜렉터를 오늘 날짜 까지 돌리지 않아 daily_buy_list의 오늘 날짜 테이블이 없는 경우
+                """.format(self.open_api.today))
 
     def is_table_exist_daily_buy_list(self, date):
         sql = "select 1 from information_schema.tables where table_schema ='daily_buy_list' and table_name = '%s'"

@@ -158,9 +158,6 @@ ex)
                 # self.use_min= True
                 # self.only_nine_buy = False
 
-            elif self.simul_num == 6:
-                self.db_to_realtime_daily_buy_list_num = 6
-
             # 절대 모멘텀 / 상대 모멘텀
             elif self.simul_num in (7, 8, 9, 10):
                 # 매수 리스트 설정 알고리즘 번호(절대모멘텀 code ver)
@@ -222,18 +219,6 @@ ex)
                 elif self.simul_num == 14:
                     self.trade_check_num = 3
                     self.rarry_k = 0.5
-
-            elif self.simul_num == 15:
-                # 하루에 한번 매수 여부
-                self.only_nine_buy = True
-                # naver crawling 사용 여부
-                self.use_realtime_crawl = True
-                # naver crawling 매수 알고리즘
-                self.db_to_realtime_daily_buy_list_num = 10
-                # 매수 시작 시간
-                self.buy_start_time = QTime(9, 30, 0)
-                # 거래대금
-                self.total_tr_price = 1000000000
             elif self.simul_num == 16:
                 self.db_to_realtime_daily_buy_list_num = 11
 

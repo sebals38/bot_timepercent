@@ -1,7 +1,7 @@
 @Echo off
-@Echo trader Start
+@Echo collector Start
 set x=0
-call "%HOMEPATH%\Anaconda3\Scripts\activate.bat" py37_32
+call "C:\ProgramData\Anaconda3\Scripts\activate.bat" C:\ProgramData\Anaconda3
 @taskkill /f /im python.exe 2> NUL
 
 :repeat
@@ -18,8 +18,8 @@ goto repeat
 
 :1
 set x=0
-set max=700
+set max=5000
 
-start python "%~dp0/../trader.py"
+start python "%~dp0/../collector_v3.py"
 timeout 5 > NUL
 goto repeat

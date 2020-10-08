@@ -140,13 +140,6 @@ class daily_craw_config():
         # 한글로된 컬럼명을 영어로 바꿔준다.
         self.code_df = self.code_df.rename(columns={'회사명': 'code_name', '종목코드': 'code'})
 
-    def get_url(self, item_name, code_df):
-        code = code_df.query("code_name=='{}'".format(item_name))['code'].to_string(index=False)
-        code = code.strip()
-        url = 'http://finance.naver.com/item/sise_day.nhn?code={code}'.format(code=code)
-        # print("요청 URL = {}".format(url))
-        return url
-
     def change_format(self, data):
         strip_data = data.replace('.', '')
 

@@ -1,12 +1,13 @@
 import sys
 
 import pymysql
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.engine.url import URL
 from sqlalchemy.exc import InternalError
 
 from library import cf
 from library.logging_pack import logger
+from library.open_api import escape_percentage
 
 pymysql.install_as_MySQLdb()
 
@@ -26,6 +27,8 @@ db_url = URL(
 )
 
 engine = create_engine(db_url, encoding='utf-8')
+event.listen(engine, 'before_execute', escape_percentage, retval=True)
+
 table_names = engine.execute(
     'SELECT table_name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = "daily_craw"'
 )

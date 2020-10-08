@@ -2,7 +2,7 @@
 @Echo collector Start
 set x=0
 call "%HOMEPATH%\Anaconda3\Scripts\activate.bat" py37_32
-@taskkill /f /im python.exe /fi "memusage gt 40" 2>NUL | findstr 성공 >NUL
+@taskkill /f /im python.exe 2> NUL
 
 :repeat
 @tasklist | find "python.exe" /c > NUL

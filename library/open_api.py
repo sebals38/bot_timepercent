@@ -1,4 +1,4 @@
-ver = "#version 1.3.7"
+ver = "#version 1.3.8"
 print(f"open_api Version: {ver}")
 
 from library.simulator_func_mysql import *
@@ -665,13 +665,11 @@ class open_api(QAxWidget):
         # 만약에 종목 테이블이 없으면 600일 한번만 가져오는게 아니고 몇 천일이던 싹다 가져오는거다.
         if not self.is_craw_table_exist(code_name):
             while self.remained_data == True:
-                time.sleep(TR_REQ_TIME_INTERVAL)
                 self.set_input_value("종목코드", code)
                 self.set_input_value("기준일자", date)
                 self.set_input_value("수정주가구분", 1)
                 self.comm_rq_data("opt10081_req", "opt10081", 2, "0101")
 
-        time.sleep(TR_REQ_TIME_INTERVAL)
         # data 비어있는 경우
         if len(self.ohlcv) == 0:
             return []
@@ -1061,15 +1059,6 @@ class open_api(QAxWidget):
 
         logger.debug("self.today : %s , self.date_rows_yesterday : %s !", self.today, self.date_rows_yesterday)
 
-        # 고급챕터에서 수업 진행 시 아래 주석을 풀어주세요!
-        # # naver 실시간 크롤링 매수,  현재 시간이 buy_start_time(매수 시작 시간) 을 지나는 순간 매수 시작
-        if self.sf.use_realtime_crawl:
-            if self.sf.buy_start_time <= QTime.currentTime():
-                # 전달 되는 인자 값들은 today, yesterday, i(self.date_rows 인덱스)
-                self.sf.db_to_realtime_daily_buy_list(self.today, self.sf.date_rows[-1][0], len(self.sf.date_rows))
-            else:
-                return
-
         if self.sf.is_simul_table_exist(self.db_name, "realtime_daily_buy_list"):
             logger.debug("realtime_daily_buy_list 생겼다!!!!! ")
             self.sf.get_realtime_daily_buy_list()
@@ -1124,16 +1113,16 @@ class open_api(QAxWidget):
 
     # openapi 조회 카운트를 체크 하고 cf.max_api_call 횟수 만큼 카운트 되면 봇이 꺼지게 하는 함수
     def exit_check(self):
+        logger.debug(self.rq_count)
+        if self.rq_count == cf.max_api_call:
+            sys.exit(1)
+
+        # openapi 조회 count 출력
         rq_delay = datetime.timedelta(seconds=0.6)
         time_diff = datetime.datetime.now() - self.call_time
         if rq_delay > datetime.datetime.now() - self.call_time:
             time.sleep((rq_delay - time_diff).total_seconds())
-
         self.rq_count += 1
-        # openapi 조회 count 출력
-        logger.debug(self.rq_count)
-        if self.rq_count == cf.max_api_call:
-            sys.exit(1)
 
     # 매도 했는데 bot이 꺼져있을때 매도해서 possessed_item 테이블에는 없는데 all_item_db에 sell_date 안찍힌 종목들 처리해준다.
     def final_chegyul_check(self):

@@ -1,4 +1,4 @@
-ver = "#version 1.3.3"
+ver = "#version 1.3.4"
 print(f"simulator_func_mysql Version: {ver}")
 import sys
 is_64bits = sys.maxsize > 2**32
@@ -106,21 +106,10 @@ class simulator_func_mysql:
 
         print("self.simul_num!!! ", self.simul_num)
 
-        # 네이버 실시간 크롤링 사용 여부 [True 사용, False 비사용] [고급챕터에서 소개]
-        # 실시간 크롤링이기 때문에 시뮬레이션은 불가. 모의투자만 사용가능
-        # 사용 방법 :
-        # 1. 아래 두개 옵션을 복사해서 원하는 알고리즘에 넣고 True로 변경.
-        # 2. 실시간 네이버크롤링 매수 알고리즘 번호를 설정(self.db_to_realtime_daily_buy_list_num)
-        # 3. self.only_nine_buy = True 로 설정하면 원하는 시간(buy_start_time)에 한번만 realtime_daily_buy_list를 만들고 조건에 맞는 종목들을 매수
-        # 4. 만약 only_nine_buy 를 False 로 설정하면 실시간으로 realtime_daily_buy_list를 만들고 조건에 맞는 종목들을 매수
-        # 5. 유의 사항 : trader.py 의 variable_setting 함수에 self.buy_end_time 설정
-        self.use_realtime_crawl = False
-        self.buy_start_time = QTime(9, 00, 0)
-
         ###!@####################################################################################################################
         # 아래 부터는 알고리즘 별로 별도의 설정을 해주는 부분
 
-        if self.simul_num in (1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16):
+        if self.simul_num in (1, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 16):
             # 시뮬레이팅 시작 일자(분 별 시뮬레이션의 경우 최근 1년 치 데이터만 있기 때문에 start_date 조정 필요)
             self.simul_start_date = "20190101"
 
@@ -167,9 +156,6 @@ class simulator_func_mysql:
                 self.d1_diff = 2
                 # self.use_min= True
                 # self.only_nine_buy = False
-
-            elif self.simul_num == 6:
-                self.db_to_realtime_daily_buy_list_num = 6
 
             # 절대 모멘텀 / 상대 모멘텀
             elif self.simul_num in (7, 8, 9, 10):
@@ -233,18 +219,6 @@ class simulator_func_mysql:
                 elif self.simul_num == 14:
                     self.trade_check_num = 3
                     self.rarry_k = 0.5
-
-            elif self.simul_num == 15:
-                # 하루에 한번 매수 여부
-                self.only_nine_buy = True
-                # naver crawling 사용 여부
-                self.use_realtime_crawl = True
-                # naver crawling 매수 알고리즘
-                self.db_to_realtime_daily_buy_list_num = 10
-                # 매수 시작 시간
-                self.buy_start_time = QTime(9, 30, 0)
-                # 거래대금
-                self.total_tr_price = 1000000000
 
             elif self.simul_num == 16:
                 self.db_to_realtime_daily_buy_list_num = 11
@@ -726,19 +700,6 @@ class simulator_func_mysql:
                     "order by volume * close desc"
             realtime_daily_buy_list = self.engine_daily_buy_list.execute(sql % (self.total_transaction_price,self.vol_mul, self.d1_diff , date_rows_yesterday, self.interval_month, date_rows_yesterday,date_rows_yesterday ,date_rows_yesterday,date_rows_yesterday,date_rows_yesterday, self.invest_unit)).fetchall()
 
-
-        elif self.db_to_realtime_daily_buy_list_num == 6:
-            year_temp = str(int(date_rows_yesterday[0:4])-1)
-            sql = "SELECT a.* FROM `" + date_rows_yesterday + "` a,(SELECT code_name, code, year, sum(value) AS sum_value, count(*) AS ct FROM naver "\
-                    "WHERE year = '%s' AND label IN ('PER(배)', 'PBR(배)') "\
-                    "AND value IS NOT NULL AND value != 0 "\
-                    "GROUP BY code "\
-                    "HAVING ct = 2 "\
-                    "ORDER BY sum_value) PERPBR "\
-                    "WHERE a.code = PERPBR.code AND a.close < '%s' "\
-                    "LIMIT 100"
-            realtime_daily_buy_list = self.engine_daily_buy_list.execute(sql % (year_temp,self.invest_unit)).fetchall()
-
         # 절대 모멘텀 전략 : 특정일 전의 종가 보다 n% 이상 상승한 종목 매수 (code version)
         elif self.db_to_realtime_daily_buy_list_num == 7:
             # 아래에서 필터링 된 매수종목을 append 해주기 위해 비어있는 리스트를 만들어준다.
@@ -803,29 +764,6 @@ class simulator_func_mysql:
                 realtime_daily_buy_list = self.engine_daily_buy_list.execute(
                     sql % (self.diff_point, self.invest_unit)).fetchall()
 
-
-        # 거래대금 self.total_tr_price 이상 / 실시간 전일비 TOP5 매수 알고리즘
-        elif self.db_to_realtime_daily_buy_list_num == 10:
-            import naver_multi_crawler
-            date_rows_yesterday = self.get_recent_daily_buy_list_date()
-            today_min_date = datetime.datetime.today().strftime("%Y%m%d%H%M")
-            naver_multi_crawler.run_crawl(today_min_date)
-            # daily_buy_list DB에서 가장 최근 날짜(매수하는 날 기준 어제 날짜가 Return)
-            sql= "SELECT YES_DAILY.* " \
-                f"FROM `{date_rows_yesterday}` YES_DAILY ,naver_min_crawl NAVER " \
-                "WHERE YES_DAILY.code = NAVER.code "\
-                f"AND NAVER.date = '{today_min_date}' "\
-                f"AND NAVER.close * NAVER.volume > {self.total_tr_price} "\
-                "AND (NAVER.close-YES_DAILY.close)/YES_DAILY.close*100 < 20 " \
-                "AND (exists (SELECT null FROM stock_kospi KOSPI WHERE YES_DAILY.code=KOSPI.code) "\
-                "OR exists (SELECT null FROM stock_kosdaq KOSDAQ WHERE YES_DAILY.code=KOSDAQ.code)) "\
-                "ORDER BY (NAVER.close-YES_DAILY.close)/YES_DAILY.close*100 DESC "\
-                "LIMIT 5"
-
-            # 아래 명령을 통해 테이블로 부터 데이터를 가져오면 리스트 형태로 realtime_daily_buy_list 에 담긴다.
-            realtime_daily_buy_list = self.engine_daily_buy_list.execute(sql).fetchall()
-
-
         # ETF
         elif self.db_to_realtime_daily_buy_list_num == 11:
             sql = f"SELECT * from `{date_rows_yesterday}` YES_DAY " \
@@ -860,7 +798,7 @@ class simulator_func_mysql:
                                                             'vol5', 'vol10', 'vol20', 'vol40', 'vol60', 'vol80',
                                                             'vol100', 'vol120'])
 
-            # lamda 는 한줄로 표현하는 함수식이다. 여기서 int로 param을 보내야 6d ( 정수) 에서 안걸린다.
+            # lamda는 익명 함수이다. 여기서 int로 param을 보내야 6d ( 정수) 에서 안걸린다.
             df_realtime_daily_buy_list['code'] = df_realtime_daily_buy_list['code'].apply(
                 lambda x: "{:0>6d}".format(int(x)))
 
@@ -897,20 +835,6 @@ class simulator_func_mysql:
             else:
                 # check_item 컬럼에 0 으로 setting
                 df_realtime_daily_buy_list['check_item'] = int(0)
-
-                # 영상 촬영 후 추가 된 코드입니다. --------------------------------
-                # 중복 매수 방지를 강화한 코드를 추가
-                if self.engine_simulator.has_table('realtime_daily_buy_list'):
-                    checked_items = self.engine_simulator.execute("""
-                        SELECT code FROM realtime_daily_buy_list WHERE check_item = 1
-                    """).fetchall()
-
-                    for r in checked_items:
-                        index = df_realtime_daily_buy_list.loc[df_realtime_daily_buy_list['code'] == r.code].index
-                        if not index.empty:
-                            df_realtime_daily_buy_list.loc[index[0], 'check_item'] = 1
-                # ----------------------------------------------------------------
-
                 df_realtime_daily_buy_list.to_sql('realtime_daily_buy_list', self.engine_simulator, if_exists='replace')
 
                 # 현재 보유 중인 종목들은 삭제

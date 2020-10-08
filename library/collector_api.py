@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 from sqlalchemy import Integer, Text
 
-ver = "#version 1.3.7"
+ver = "#version 1.3.8"
 print(f"collector_api Version: {ver}")
 
 import numpy
@@ -98,13 +98,14 @@ class collector_api():
     # 실전 봇, 모의 봇 매수 종목 세팅 + all_item_db 업데이트 함수
     def realtime_daily_buy_list_check(self):
         if self.open_api.sf.is_date_exist(self.open_api.today):
-            logger.debug("daily_buy_list DB에 {} 테이블이 있습니다. jackbot DB에 realtime_daily_buy_list 테이블을 생성합니다".format(self.open_api.today))
+            logger.debug("daily_buy_list DB에 {} 테이블이 있습니다. jackbot DB에 realtime_daily_buy_list 테이블을 생성합니다".format(
+                self.open_api.today))
 
             self.open_api.sf.get_date_for_simul()
             # 첫 번째 파라미터는 여기서는 의미가 없다.
             # 두 번째 파라미터에 오늘 일자를 넣는 이유는 매수를 하는 시점인 내일 기준으로 date_rows_yesterday가 오늘 이기 때문
-            self.open_api.sf.db_to_realtime_daily_buy_list(self.open_api.today, self.open_api.today, len(self.open_api.sf.date_rows) - 1)
-
+            self.open_api.sf.db_to_realtime_daily_buy_list(self.open_api.today, self.open_api.today,
+                                                           len(self.open_api.sf.date_rows) - 1)
 
             # all_item_db에서 open, clo5~120, volume 등을 오늘 일자 데이터로 업데이트 한다.
             self.open_api.sf.update_all_db_by_date(self.open_api.today)
@@ -422,6 +423,28 @@ class collector_api():
 
     def set_daily_crawler_table(self, code, code_name):
         df = self.open_api.get_total_data(code, code_name, self.open_api.today)
+        oldest_row = df.iloc[-1]
+        check_row = None
+        if self.engine_JB.dialect.has_table(self.open_api.engine_daily_craw, code_name):
+            check_row = self.open_api.engine_daily_craw.execute(f"""
+                SELECT * FROM `{code_name}` WHERE date = '{oldest_row['date']}' LIMIT 1
+            """).fetchall()
+
+        reset = False
+        if check_row and check_row[0]['close'] != oldest_row['close']:
+            logger.info(f'{code} {code_name}의 액면분할/증자 등의 이유로 수정주가가 달라져서 처음부터 다시 콜렉팅')
+            reset = True
+            # daily_craw 삭제
+            logger.info('daily_craw와 min_craw 삭제 중..')
+            commands = [
+                f'DROP TABLE IF EXISTS daily_craw.`{code_name}`',
+                f'DROP TABLE IF EXISTS min_craw.`{code_name}`'
+            ]
+
+            for com in commands:
+                self.open_api.engine_daily_buy_list.execute(com)
+            logger.info('삭제 완료')
+            df = self.open_api.get_total_data(code, code_name, self.open_api.today)
 
         df_temp = DataFrame(df,
                             columns=['date', 'check_item', 'code', 'code_name', 'd1_diff_rate', 'close', 'open', 'high',
@@ -490,7 +513,7 @@ class collector_api():
         df_temp['vol120'] = df_temp['volume'].rolling(window=120).mean()
 
         # 여기 이렇게 추가해야함
-        if self.open_api.is_craw_table_exist(code_name):
+        if self.engine_JB.dialect.has_table(self.open_api.engine_daily_craw, code_name):
             df_temp = df_temp[df_temp.date > self.open_api.get_daily_craw_db_last_date(code_name)]
 
         if len(df_temp) == 0:
@@ -514,6 +537,26 @@ class collector_api():
                  'vol5', 'vol10', 'vol20', 'vol40', 'vol60', 'vol80', 'vol100', 'vol120']].fillna(0).astype(int)
 
         df_temp.to_sql(name=code_name, con=self.open_api.engine_daily_craw, if_exists='append')
+        logger.info(f'daily_craw.{code_name} 생성 완료 {code}')
+        if reset:
+            logger.info('daily_buy_list 업데이트 중..')
+            dbl_dates = self.open_api.engine_daily_buy_list.execute("""
+                SELECT table_name as tname FROM information_schema.tables 
+                WHERE table_schema ='daily_buy_list' AND table_name REGEXP '[0-9]{8}'
+            """).fetchall()
+
+            for row in dbl_dates:
+                logger.info(f'{code} {code_name} - daily_buy_list.`{row.tname}` 업데이트')
+                try:
+                    new_data = df_temp[df_temp['date'] == row.tname]
+                except IndexError:
+                    continue
+                self.open_api.engine_daily_buy_list.execute(f"""
+                    DELETE FROM `{row.tname}` WHERE code = {code}
+                """)
+                new_data.to_sql(name=row.tname, con=self.open_api.engine_daily_buy_list, if_exists='append')
+
+            logger.info('daily_buy_list 업데이트 완료')
 
         check_item_gubun = 1
         return check_item_gubun

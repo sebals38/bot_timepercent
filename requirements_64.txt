@@ -11,4 +11,4 @@ cryptography
 matplotlib
 sklearn
 tensorflow==2.3.0
-keras
+keras==2.4.3

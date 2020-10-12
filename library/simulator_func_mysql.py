@@ -1,4 +1,4 @@
-ver = "#version 1.3.4"
+ver = "#version 1.3.5"
 print(f"simulator_func_mysql Version: {ver}")
 import sys
 is_64bits = sys.maxsize > 2**32
@@ -1564,10 +1564,13 @@ class simulator_func_mysql:
         # rows[i][0] 하는 이유는 rows[i]는 튜플( )로 나온다 그 튜플의 원소를 꺼내기 위해 rows[i]에 [0]을 추가
         self.engine_simulator.execute(sql % (100, date_rows_today))
 
+    # 시뮬레이션이 다 끝났을 때 마지막 jango_data 정리
+    def arrange_jango_data(self):
         len_date = self.get_len_jango_data_date()
         sql = "select date from jango_data"
         rows = self.engine_simulator.execute(sql).fetchall()
 
+        print('jango_data 최종 정산 중...')
         # 위에 전체
         for i in range(len_date):
             # today_buy_count
@@ -1606,6 +1609,7 @@ class simulator_func_mysql:
 
             sql = "UPDATE jango_data SET today_buy_total_losscut_rate=round(today_buy_total_losscut_count/today_buy_count*100,2) WHERE date = '%s'"
             self.engine_simulator.execute(sql % (rows[i][0]))
+        print('jango_data 최종 정산 완료')
 
     # 분 데이터를 가져오는 함수
     def get_date_min_for_simul(self, simul_start_date):
@@ -1760,3 +1764,11 @@ class simulator_func_mysql:
             # 일별 시뮬레이팅
             else:
                 self.simul_by_date(date_rows_today, date_rows_yesterday, i)
+
+        # 마지막 jango_data 정리
+        self.arrange_jango_data()
+
+
+if __name__ == '__main__':
+    logger.error('simulator.py로 실행해 주시기 바랍니다.')
+    sys.exit(1)

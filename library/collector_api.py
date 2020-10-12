@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 from sqlalchemy import Integer, Text
 
-ver = "#version 1.3.8"
+ver = "#version 1.3.9"
 print(f"collector_api Version: {ver}")
 
 import numpy
@@ -537,8 +537,8 @@ class collector_api():
                  'vol5', 'vol10', 'vol20', 'vol40', 'vol60', 'vol80', 'vol100', 'vol120']].fillna(0).astype(int)
 
         df_temp.to_sql(name=code_name, con=self.open_api.engine_daily_craw, if_exists='append')
-        logger.info(f'daily_craw.{code_name} 생성 완료 {code}')
         if reset:
+            logger.info(f'daily_craw.{code_name} 업데이트 완료 {code}')
             logger.info('daily_buy_list 업데이트 중..')
             dbl_dates = self.open_api.engine_daily_buy_list.execute("""
                 SELECT table_name as tname FROM information_schema.tables 

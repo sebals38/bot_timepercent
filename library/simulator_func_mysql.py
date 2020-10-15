@@ -1,4 +1,4 @@
-ver = "#version 1.3.5"
+ver = "#version 1.3.6"
 print(f"simulator_func_mysql Version: {ver}")
 import sys
 is_64bits = sys.maxsize > 2**32
@@ -1566,49 +1566,50 @@ class simulator_func_mysql:
 
     # 시뮬레이션이 다 끝났을 때 마지막 jango_data 정리
     def arrange_jango_data(self):
-        len_date = self.get_len_jango_data_date()
-        sql = "select date from jango_data"
-        rows = self.engine_simulator.execute(sql).fetchall()
+        if self.engine_simulator.dialect.has_table(self.engine_simulator, 'jango_data'):
+            len_date = self.get_len_jango_data_date()
+            sql = "select date from jango_data"
+            rows = self.engine_simulator.execute(sql).fetchall()
 
-        print('jango_data 최종 정산 중...')
-        # 위에 전체
-        for i in range(len_date):
-            # today_buy_count
-            sql = "UPDATE jango_data SET today_buy_count=(select count(*) from (select code from all_item_db where buy_date like '%s') b) WHERE date='%s'"
-            # date 하는 이유는 rows[i]는 튜플로 나온다 그 튜플의 원소를 꺼내기 위해 [0]을 추가
-            self.engine_simulator.execute(sql % ("%%" + str(rows[i][0]) + "%%", rows[i][0]))
+            print('jango_data 최종 정산 중...')
+            # 위에 전체
+            for i in range(len_date):
+                # today_buy_count
+                sql = "UPDATE jango_data SET today_buy_count=(select count(*) from (select code from all_item_db where buy_date like '%s') b) WHERE date='%s'"
+                # date 하는 이유는 rows[i]는 튜플로 나온다 그 튜플의 원소를 꺼내기 위해 [0]을 추가
+                self.engine_simulator.execute(sql % ("%%" + str(rows[i][0]) + "%%", rows[i][0]))
 
-            # today_buy_total_sell_count ( 익절, 손절 포함)
-            sql = "UPDATE jango_data SET today_buy_total_sell_count=(select count(*) from (select code from all_item_db a where buy_date like '%s' and (a.sell_date != 0) group by code ) b) WHERE date='%s'"
-            self.engine_simulator.execute(sql % ("%%" + rows[i][0] + "%%", rows[i][0]))
+                # today_buy_total_sell_count ( 익절, 손절 포함)
+                sql = "UPDATE jango_data SET today_buy_total_sell_count=(select count(*) from (select code from all_item_db a where buy_date like '%s' and (a.sell_date != 0) group by code ) b) WHERE date='%s'"
+                self.engine_simulator.execute(sql % ("%%" + rows[i][0] + "%%", rows[i][0]))
 
-            # today_buy_total_possess_count 오늘 사고 계속 가지고 있는것들
-            sql = "UPDATE jango_data SET today_buy_total_possess_count=(select count(*) from (select code from all_item_db a where buy_date like '%s' and a.sell_date = '%s' group by code ) b) WHERE date='%s'"
-            self.engine_simulator.execute(sql % ("%%" + rows[i][0] + "%%", 0, rows[i][0]))
+                # today_buy_total_possess_count 오늘 사고 계속 가지고 있는것들
+                sql = "UPDATE jango_data SET today_buy_total_possess_count=(select count(*) from (select code from all_item_db a where buy_date like '%s' and a.sell_date = '%s' group by code ) b) WHERE date='%s'"
+                self.engine_simulator.execute(sql % ("%%" + rows[i][0] + "%%", 0, rows[i][0]))
 
-            sql = "UPDATE jango_data SET today_buy_today_profitcut_count=(select count(*) from (select code from all_item_db where buy_date like '%s' and sell_date like '%s' and (sell_rate >= '%s' ) group by code ) b) WHERE date='%s'"
-            self.engine_simulator.execute(sql % ("%%" + rows[i][0] + "%%", "%%" + rows[i][0] + "%%", 0, rows[i][0]))
+                sql = "UPDATE jango_data SET today_buy_today_profitcut_count=(select count(*) from (select code from all_item_db where buy_date like '%s' and sell_date like '%s' and (sell_rate >= '%s' ) group by code ) b) WHERE date='%s'"
+                self.engine_simulator.execute(sql % ("%%" + rows[i][0] + "%%", "%%" + rows[i][0] + "%%", 0, rows[i][0]))
 
-            sql = "UPDATE jango_data SET today_buy_today_profitcut_rate= round(today_buy_today_profitcut_count /today_buy_count *100,2) WHERE date = '%s'"
-            self.engine_simulator.execute(sql % (rows[i][0]))
+                sql = "UPDATE jango_data SET today_buy_today_profitcut_rate= round(today_buy_today_profitcut_count /today_buy_count *100,2) WHERE date = '%s'"
+                self.engine_simulator.execute(sql % (rows[i][0]))
 
-            sql = "UPDATE jango_data SET today_buy_today_losscut_count=(select count(*) from (select code from all_item_db where buy_date like '%s' and sell_date like '%s' and sell_rate < '%s'  group by code ) b) WHERE date='%s'"
-            self.engine_simulator.execute(sql % ("%%" + rows[i][0] + "%%", "%%" + rows[i][0] + "%%", 0, rows[i][0]))
+                sql = "UPDATE jango_data SET today_buy_today_losscut_count=(select count(*) from (select code from all_item_db where buy_date like '%s' and sell_date like '%s' and sell_rate < '%s'  group by code ) b) WHERE date='%s'"
+                self.engine_simulator.execute(sql % ("%%" + rows[i][0] + "%%", "%%" + rows[i][0] + "%%", 0, rows[i][0]))
 
-            sql = "UPDATE jango_data SET today_buy_today_losscut_rate=round(today_buy_today_losscut_count /today_buy_count *100,2) WHERE date = '%s'"
-            self.engine_simulator.execute(sql % (rows[i][0]))
+                sql = "UPDATE jango_data SET today_buy_today_losscut_rate=round(today_buy_today_losscut_count /today_buy_count *100,2) WHERE date = '%s'"
+                self.engine_simulator.execute(sql % (rows[i][0]))
 
-            sql = "UPDATE jango_data SET today_buy_total_profitcut_count=(select count(*) from (select code from all_item_db where buy_date like '%s' and sell_rate >= '%s'  group by code ) b) WHERE date='%s'"
-            self.engine_simulator.execute(sql % ("%%" + rows[i][0] + "%%", 0, rows[i][0]))
+                sql = "UPDATE jango_data SET today_buy_total_profitcut_count=(select count(*) from (select code from all_item_db where buy_date like '%s' and sell_rate >= '%s'  group by code ) b) WHERE date='%s'"
+                self.engine_simulator.execute(sql % ("%%" + rows[i][0] + "%%", 0, rows[i][0]))
 
-            sql = "UPDATE jango_data SET today_buy_total_profitcut_rate=round(today_buy_total_profitcut_count /today_buy_count *100,2) WHERE date = '%s'"
-            self.engine_simulator.execute(sql % (rows[i][0]))
+                sql = "UPDATE jango_data SET today_buy_total_profitcut_rate=round(today_buy_total_profitcut_count /today_buy_count *100,2) WHERE date = '%s'"
+                self.engine_simulator.execute(sql % (rows[i][0]))
 
-            sql = "UPDATE jango_data SET today_buy_total_losscut_count=(select count(*) from (select code from all_item_db where buy_date like '%s' and sell_rate < '%s'  group by code ) b) WHERE date='%s'"
-            self.engine_simulator.execute(sql % ("%%" + rows[i][0] + "%%", 0, rows[i][0]))
+                sql = "UPDATE jango_data SET today_buy_total_losscut_count=(select count(*) from (select code from all_item_db where buy_date like '%s' and sell_rate < '%s'  group by code ) b) WHERE date='%s'"
+                self.engine_simulator.execute(sql % ("%%" + rows[i][0] + "%%", 0, rows[i][0]))
 
-            sql = "UPDATE jango_data SET today_buy_total_losscut_rate=round(today_buy_total_losscut_count/today_buy_count*100,2) WHERE date = '%s'"
-            self.engine_simulator.execute(sql % (rows[i][0]))
+                sql = "UPDATE jango_data SET today_buy_total_losscut_rate=round(today_buy_total_losscut_count/today_buy_count*100,2) WHERE date = '%s'"
+                self.engine_simulator.execute(sql % (rows[i][0]))
         print('jango_data 최종 정산 완료')
 
     # 분 데이터를 가져오는 함수

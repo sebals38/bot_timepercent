@@ -142,7 +142,7 @@ class DARTApi:
                 corp_code: corp_code(종목코드가 아님, 공시대상회사의 고유번호(8자리)),
                 bsns_year: 연도를(사업연도(4자리))
                 reprt_code:
-                    1분기보고서 : 11013, 반기보고서 : 110123, 3분기보고서 : 11014, 사업보고서 : 11011
+                    1분기보고서 : 11013, 반기보고서 : 11012, 3분기보고서 : 11014, 사업보고서 : 11011
                 """
                 res = dart.api.finance.get_single_corp(corp_code, str(year), '11011')
 

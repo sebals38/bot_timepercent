@@ -1,4 +1,4 @@
-ver = "#version 1.3.8"
+ver = "#version 1.3.9"
 print(f"open_api Version: {ver}")
 
 from library.simulator_func_mysql import *
@@ -17,7 +17,7 @@ import re
 import pandas as pd
 import os
 
-from sqlalchemy import create_engine, event, Text
+from sqlalchemy import create_engine, event, Text, Float
 from sqlalchemy.pool import Pool
 
 import pymysql
@@ -162,7 +162,6 @@ class open_api(QAxWidget):
         logger.debug("variable_setting 함수에 들어왔다.")
         self.get_today_buy_list_code = 0
         self.cf = cf
-        self.chegyul_fail_amount = False
         self.reset_opw00018_output()
         # 아래 분기문은 실전 투자 인지, 모의 투자 인지 결정
         if self.account_number == cf.real_account:  # 실전
@@ -331,7 +330,6 @@ class open_api(QAxWidget):
 
     def comm_rq_data(self, rqname, trcode, next, screen_no):
         self.exit_check()
-        self.tr_loop_count += 1
         ret = self.dynamicCall("CommRqData(QString, QString, int, QString", rqname, trcode, next, screen_no)
         if ret == -200:
             raise RateLimitExceeded('요청제한 횟수를 초과하였습니다.')
@@ -340,6 +338,7 @@ class open_api(QAxWidget):
 
         if ret == 0:
             self.tr_event_loop = QEventLoop()
+            self.tr_loop_count += 1
             self.tr_event_loop.exec_()
 
     def _get_comm_data(self, code, field_name, index, item_name):
@@ -523,7 +522,20 @@ class open_api(QAxWidget):
         # AttributeError: 'numpy.int64' object has no attribute 'translate' 에러 발생
         self.sf.df_all_item = self.sf.df_all_item.fillna(0)
         self.sf.df_all_item.to_sql('all_item_db', self.engine_JB, if_exists='append', dtype={
-            'code_name': Text()
+            'code_name': Text,
+            'rate': Float,
+            'sell_rate': Float,
+            'purchase_rate': Float,
+            'sell_date': Text,
+            'd1_diff_rate': Float,
+            'clo5_diff_rate': Float,
+            'clo10_diff_rate': Float,
+            'clo20_diff_rate': Float,
+            'clo40_diff_rate': Float,
+            'clo60_diff_rate': Float,
+            'clo80_diff_rate': Float,
+            'clo100_diff_rate': Float,
+            'clo120_diff_rate': Float
         })
 
     def check_balance(self):
@@ -600,6 +612,7 @@ class open_api(QAxWidget):
             possesed_item.loc[i, 'item_total_purchase'] = int(row[6])
         # possessed_item 테이블에 현재 보유 종목을 넣는다.
         possesed_item.to_sql('possessed_item', self.engine_JB, if_exists='replace')
+        self.chegyul_sync()
 
     # get_total_data_min : 특정 종목의 틱 (1분별) 데이터 조회 함수
     # 사용방법
@@ -1134,8 +1147,7 @@ class open_api(QAxWidget):
         num = len(rows)
 
         for t in range(num):
-            logger.debug("t!!!")
-            logger.debug(t)
+            logger.debug(f"t!!! {t}")
             self.sell_final_check2(rows[t][0])
 
         # 오늘 리스트 다 뽑았으면 today를 setting_data에 체크
@@ -1166,43 +1178,20 @@ class open_api(QAxWidget):
             sql = "update all_item_db set holding_amount ='%s', purchase_price ='%s', present_price='%s',valuation_profit='%s',rate='%s',item_total_purchase='%s' where code='%s' and sell_date = '%s'"
             self.engine_JB.execute(sql % (holding_amount,purchase_price,present_price,valuation_profit,float(rate),item_total_purchase, code, 0))
 
-    # 체결이 됐는지 안됐는지 확인한다.
-    # 매수 했을 경우 possessd_item 테이블에는 있는데, all_item_db에 없는 경우가 있다.
-    # why ? 매수 한 뒤에 all_item_db에 추가하기 전에 봇이 꺼지는 경우!
-    # 따라서 아래 체결 체크를 확인하는 함수가 필요로 하다.
-    def chegyul_check(self):
-        logger.debug("chegyul_check!!!")
+    def chegyul_sync(self):
         # 먼저 possessd_item 테이블에는 있는데 all_item_db에 없는 종목들 추가해준다
-        sql = "select code,code_name,rate from possessed_item p where p.code not in (select a.code from all_item_db a where a.sell_date = '%s' group by a.code) group by p.code"
-        rows = self.engine_JB.execute(sql % (0,)).fetchall()
+        sql = """select code, code_name, rate from possessed_item p
+            where p.code not in (select a.code from all_item_db a
+                                 where a.sell_date = '0' group by a.code)
+            group by p.code"""
+
+        rows = self.engine_JB.execute(sql).fetchall()
 
         logger.debug("possess_item 테이블에는 있는데 all_item_db에 없는 종목들 처리!!!")
         logger.debug(rows)
-        num = len(rows)
 
-        for k in range(num):
-            # chegyul check를 1을 줘야한다. 그래야 안전하게 검사하고 넣는다. 예를 들면 미체결인데 갑자기 all_db에는 매도가 찍혀버리는 경우가 있음..;
-            # order_num을 보내야하는데 따로 없어서 그냥 today로 보냄 rows[k][0] 은 code이다
-            self.db_to_all_item(self.today, rows[k][0], 1, 0, rows[k][2])
-
-        sql = "SELECT code FROM all_item_db where chegyul_check='%s' and (sell_date = '%s' or sell_date= '%s')"
-        rows = self.engine_JB.execute(sql % (1, 0, "")).fetchall()
-
-        logger.debug("in chegyul_check!!!!! all_db에서 cc가 1인놈들 확인!!!!!!!!")
-        logger.debug(rows)
-        num = len(rows)
-
-        # 여기서 너무많이 rq_count 올라간다. 매수를 한 만큼, 매도를 한만큼 그 2배의 시간이 걸림 무조건 .
-        for i in range(num):
-            # logger.debug("i!!!")
-            # logger.debug(i)
-
-            # 1. Open API 조회 함수 입력값을 설정합니다.
-            # 	종목코드 = 전문 조회할 종목코드
-            code = rows[i][0]
-            logger.debug("chegyul_check code!!!")
-            logger.debug(code)
-            self.set_input_value("종목코드", code)
+        for r in rows:
+            self.set_input_value("종목코드", r.code)
             # 	조회구분 = 0:전체, 1:종목
             self.set_input_value("조회구분", 1)
             # SetInputValue("조회구분"	,  "입력값 2");
@@ -1211,42 +1200,55 @@ class open_api(QAxWidget):
             # 	비밀번호 = 사용안함(공백)
             # 	SetInputValue("비밀번호"	,  "입력값 5");
             self.comm_rq_data("opt10076_req", "opt10076", 0, "0350")
-            # 	CommRqData( "RQName"	,  "OPT10076"	,  "0"	,  "화면번호");
 
-            #    그냥 chegyul_fail_amount만 보면 될듯?
-            #   여기서 매도 체결 / 매수 체결 완료에 따라서 매수이면 매수 date 찍고, 매도 이면 매도 data 랑 rate, item_total_purchase 찍는 방식으로 다시구현
+            if self._data['주문구분'] == '+매수':
+                if self._data['미체결수량'] == 0:
+                    chegyul_check = 0
+                else:
+                    chegyul_check = 1
+            elif self._data['주문구분'] == '':
+                self.db_to_all_item(self.today, r.code, 0, 0, r.rate)
+                continue
+            else:
+                continue
 
-            #
-            # 이렇게 안하면 에러가남; chegyul_fail_amount 선언안해줬다는식으로 아니다.. 내생각엔 rq했다가 chejan receive가 들어와서 문제가 생기는거인듯 ?? 이거 확인해봐
-            # time.sleep(0.02)
-            if self.chegyul_fail_amount == -2:
-                # opt10076_req 로 comm rq data 가는 도중에 receive chejan 걸려서 chegyul_fail_amount를 못가져옴. 이럴 때는 다시 돌려
-                # 만약 여기서 두번 돌려서 시간낭비가 심하다고 판단 되는 경우에는 그냥 pass로 해도 상관없을듯 로그찍어봐
-                logger.debug(
-                    "opt10076_req 로 comm rq data 가는 도중에 receive chejan 걸려서 chegyul_fail_amount를 못가져옴. 이럴 때는 다시 돌려")
+            self.db_to_all_item(self._data['주문번호'], r.code, chegyul_check, self._data['체결가'], r.rate)
 
-                self.chegyul_check()
-            elif self.chegyul_fail_amount == -1:
-                # logger.debug("!!!!!!!!!!!!!!!!!!!!!!!!!!logger.debug _receive_chejan_data 에서 code가 불량이다!!!!!!!!!")
-                logger.debug(f"{code} 체결 완료")
-                sql = "update all_item_db set chegyul_check='%s' where code='%s' and sell_date = '%s' ORDER BY buy_date desc LIMIT 1 "
-                self.engine_JB.execute(sql % (0, code, 0))
-                # self.engine_JB.commit()
+    # 체결이 됐는지 안됐는지 확인한다.
+    # 매수 했을 경우 possessd_item 테이블에는 있는데, all_item_db에 없는 경우가 있다.
+    # why ? 매수 한 뒤에 all_item_db에 추가하기 전에 봇이 꺼지는 경우!
+    # 따라서 아래 체결 체크를 확인하는 함수가 필요로 하다.
+    def chegyul_check(self):
+        sql = "SELECT code FROM all_item_db where chegyul_check='1' and (sell_date = '0' or sell_date= '')"
+        rows = self.engine_JB.execute(sql).fetchall()
 
-            elif self.chegyul_fail_amount == 0:
-                logger.debug("체결!!!!! 이건 오늘 산놈들에 대해서만 조회가 가능한듯 ")
+        logger.debug("in chegyul_check!!!!! all_item_db에서 cheguyl_check가 1인 종목들(미체결상태) 확인!!!")
+        logger.debug(rows)
 
-                # 여기좀 간결하게 바꿔봐
+        # 여기서 너무많이 rq_count 올라간다. 매수를 한 만큼, 매도를 한만큼 그 2배의 시간이 걸림 무조건 .
+        for r in rows:
+            # 1. Open API 조회 함수 입력값을 설정합니다.
+            # 	종목코드 = 전문 조회할 종목코드
+            logger.debug(f"chegyul_check code!! : {r.code}")
+            self.set_input_value("종목코드", r.code)
+            # 	조회구분 = 0:전체, 1:종목
+            self.set_input_value("조회구분", 1)
+            self.set_input_value("계좌번호", self.account_number)
+            self.comm_rq_data("opt10076_req", "opt10076", 0, "0350")
+
+            update_sql = f"UPDATE all_item_db SET chegyul_check='0' WHERE code='{r.code}' and sell_date = '0'" \
+                         f"ORDER BY buy_date DESC LIMIT 1"
+            if not self._data['주문번호']: # 과거에 거래한 경우 opt10076 조회 시 주문번호 등의 데이터가 존재하지 않음.
+                logger.debug(f"{r.code} 체결 완료 (과거 거래 한 경우)")
+                self.engine_JB.execute(update_sql)
+
+            elif self._data['미체결수량'] == 0:
+                logger.debug(f"{r.code} 체결 완료 (오늘 거래 한 경우)")
                 # 제일 최근 종목하나만 체결정보 업데이트하는거다
-                sql = "update all_item_db set chegyul_check='%s' where code='%s' and sell_date = '%s' ORDER BY buy_date desc LIMIT 1 "
-                self.engine_JB.execute(sql % (0, code, 0))
-                # self.jackbot_db_con.commit()
-
+                self.engine_JB.execute(update_sql)
 
             else:
-                logger.debug("아직 매수 혹은 매도 중인 놈이다 미체결!!!!!!!!!!!!!!!!!!!!!!!!!")
-                logger.debug("self.chegyul_fail_amount!!")
-                logger.debug(self.chegyul_fail_amount)
+                logger.debug(f"아직 매수 혹은 매도 중인 종목 !!!! 미체결 수량: {self._data['미체결수량']}")
 
     # 하나의 종목이 체결이 됐는지 확인
     # 그래야 재매수든, 초기매수든 한번 샀는데 미체결량이 남아서 다시 사는건지 확인이 가능하다.
@@ -1264,89 +1266,30 @@ class open_api(QAxWidget):
         else:
             return False
 
-    # all db에 최종 rate랑 최종 매입량 넣기 위해서 들림 + 최종 판매가
-    def get_data_from_possessed_db(self, code):
-        logger.debug("get_data_from_possessed_db!!!")
-        # 여기서 체결여부 업데이트 이건 sell, reinvest에서만 하면 될듯
-        # self.chegyul_check()
-
-        # 여기에 mesu_list 의 """"오늘날짜""""에 있는 종목들을 제외한 놈들을 추려야한다.
-        # date가 오늘이고, volume(판매량)이 volume_limit 이상이고 close(종가) 가 invest_unit 보다 작은놈(그래야 살수있다) 그리고 판매량이 높은 순으로 정렬
-        # db 설계할 때 int, text 구분잘해야한다. 안그러면 원하는 결과가 안나옴.
-        # group by code 해야 혹시나 겹치는거 있으면 빼고 넣는다. (pymon할때 중복될수도 있음 테스트한다고 check 지웠다가 다시 실행하는 경우)
-        # groub by하는 이유는 all_item_db는 예전부터의 모든기록이 담아져있기 때문에 같은 code면 제일 최근정보 하나만 가져오면 된다. 그 이전 놈들은 다 완료된 놈들
-        # sql = "SELECT code, holding_amount, rate FROM possessed_item WHERE rate >='%s'"
-        # 미체결 상태에 있는놈들은 제외하고 가져와
-        sql = "select valuation_profit, rate, item_total_purchase, present_price from possessed_item where code='%s' group by code"
-
-        # sql = "SELECT code, holding_amount, rate FROM possessed_item WHERE rate < ?"
-        # 무조건 튜플 형태로 실행해야한다. 따라서 인자 하나를 보내더라도 ( , ) 안에 하나 넣어서 보낸다.
-
-        get_list = self.engine_JB.execute(sql % (code)).fetchall()
-        # self.engine_JB.execute(sql % (int(-6),))
-        # 데이타 Fetch
-        # rows 는 list안에 튜플이 있는 [()] 형태로 받아온다
-
-        logger.debug("get_list!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        logger.debug(get_list)
-        # logger.debug("len(get_list)!!")
-        # logger.debug(len(get_list))
-        if len(get_list) != 0:
-            self.valuation_profit = get_list[0][0]
-            self.possess_rate = get_list[0][1]
-            self.possess_item_total_purchase = get_list[0][2]
-            self.possess_sell_price = get_list[0][3]
-            logger.debug("valuation_profit!!!!!!!!")
-            logger.debug(self.valuation_profit)
-            logger.debug("possess_rate!!!!!!!!!!!")
-            logger.debug(self.possess_rate)
-            logger.debug("possess_item_total_purchase!!!!!!!!!!!!")
-            logger.debug(self.possess_item_total_purchase)
-            logger.debug("possess_sell_price!!!!!!!!")
-            logger.debug(self.possess_sell_price)
-            return True
-        else:
-            logger.critical(
-                "CRITICAL!!! get_data_from_possessed_db에서 get_list!!!!! 가 비어있다. 이럴수가 없는데..... 이게 아마 possess가 몽땅 비어서 그런거임 알아봐")
-            return False
-
-        # df = DataFrame(rows, columns=['id', 'check_item', 'code', 'date', 'open', 'high', 'low', 'close', 'volume',
-        #                               'd1_close'])
-
-        # df = DataFrame(rows)
-        # replace로 한다
-        #  이렇게 저장하면 자동으로 index가 자동증가로 생성되어있다. 왜냐하면 리스트는 기본적으로 인덱스 값을 가지고 있기 때문이다. 일단 이렇게 쓰고 나중에 다듬자.
-        # df.to_sql('today_buy_list', self.jackbot_db_con, if_exists='replace')
-
     # 매도 후 all item db 에 작업하는거
     def sell_final_check(self, code):
         logger.debug("sell_final_check")
 
         # sell_price가 없어서 에러가났음
-        sql = "UPDATE all_item_db SET item_total_purchase='%s', chegyul_check='%s', sell_date ='%s', valuation_profit='%s', sell_rate ='%s' WHERE code='%s' and sell_date ='%s' ORDER BY buy_date desc LIMIT 1"
-
-        if self.get_data_from_possessed_db(code):
-            self.engine_JB.execute(sql % (
-                self.possess_item_total_purchase, 0, self.today_detail, self.valuation_profit, self.possess_rate, code,
-                0))
-            # self.jackbot_db_con.commit()
+        get_list = self.engine_JB.execute(f"""
+            SELECT valuation_profit, rate, item_total_purchase, present_price 
+            FROM possessed_item WHERE code='{code}' LIMIT 1
+        """).fetchall()
+        if get_list:
+            item = get_list[0]
+            sql = f"""UPDATE all_item_db
+                SET item_total_purchase = {item.item_total_purchase}, chegyul_check = 0,
+                 sell_date = '{self.today_detail}', valuation_profit = {item.valuation_profit},
+                 sell_rate = {item.rate}, sell_price = {item.present_price}
+                WHERE code = '{code}' and sell_date = '0' ORDER BY buy_date desc LIMIT 1"""
+            self.engine_JB.execute(sql)
 
             # 팔았으면 즉각 possess db에서 삭제한다. 왜냐하면 checgyul_check 들어가기 직전에 possess_db를 최신화 하긴 하지만 possess db 최신화와 chegyul_check 사이에 매도가 이뤄져서 receive로 가게 되면 sell_date를 찍어버리기 때문에 checgyul_check 입장에서는 possess에는 존재하고 all_db는 sell_date찍혀있다고 판단해서 새롭게 all_db추가해버린다.
-            sql = "delete from possessed_item where code ='%s'"
-            self.engine_JB.execute(sql % (code))
-            # self.jackbot_db_con.commit()
+            self.engine_JB.execute(f"DELETE FROM possessed_item WHERE code = '{code}'")
 
-            logger.debug("delete code!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            logger.debug(code)
+            logger.debug(f"delete {code}!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         else:
             logger.debug("possess가 없다!!!!!!!!!!!!!!!!!!!!!")
-            # 여기 만약 계속 반복되면 그때는 multi로 조회하는거 넣어 두개!!! 아래두놈!!
-            #    self.check_balance()
-            #    self.db_to_possesed_item()
-
-            self.get_data_from_possessed_db(code)
-
-        # 매도 후 all item db 에 작업하는거
 
     def delete_all_item(self, code):
         logger.debug("delete_all_item!!!!!!!!")
@@ -1362,10 +1305,7 @@ class open_api(QAxWidget):
 
     #
     def sell_final_check2(self, code):
-        logger.debug("sell_final_check2222 chegyul_check에서 possess 에는 없는데 sell_date 추가 안된 종목!!!")
-        logger.debug("sell_final_check2222 code!!!!")
-        logger.debug(code)
-
+        logger.debug(f"sell_final_check2 possessed_item에는 없는데 all_item_db에 sell_date 추가 안된 종목 처리 !!! {code}")
         sql = "UPDATE all_item_db SET chegyul_check='%s', sell_date ='%s' WHERE code='%s' and sell_date ='%s' ORDER BY buy_date desc LIMIT 1"
 
         self.engine_JB.execute(sql % (0, self.today_detail, code, 0))
@@ -1373,16 +1313,10 @@ class open_api(QAxWidget):
     # all_item_db 보유한 종목이 있는지 확인 (sell_date가 0이거나 비어있으면 아직 매도하지 않고 보유한 종목이다)
     # 보유한 경우 true 반환, 보유 하지 않았으면 False 반환
     def is_all_item_db_check(self, code):
-        logger.debug("is_all_item_db_check")
-        logger.debug("is_all_item_db_check code!!!!!!!!!!!!")
-        logger.debug(code)
+        logger.debug(f"is_all_item_db_check code!! {code}")
         sql = "select code from all_item_db where code='%s' and (sell_date ='%s' or sell_date='%s') ORDER BY buy_date desc LIMIT 1"
 
         rows = self.engine_JB.execute(sql % (code, 0, "")).fetchall()
-
-        logger.debug("is_all_item_db_check rows!!!!")
-        logger.debug(rows)
-
         if len(rows) != 0:
             return True
         else:
@@ -1487,10 +1421,9 @@ class open_api(QAxWidget):
                             self.sell_chegyul_fail_check(code)
 
                     else:
-                        logger.debug("order_gubun!!!! " + str(order_gubun))
-                        logger.debug("이건 어떤 상황이라고 생각해야함??????????????????????????????")
+                        logger.debug(f"order_gubun이 매수, 매도가 아닌 다른 구분!(ex. 매수취소) gubun : {order_gubun}")
                 else:
-                    logger.debug("_receive_chejan_data 에서 code 가 불량은 아닌데 체결된놈이 빈공간이네????????????????????????")
+                    logger.debug("_receive_chejan_data 에서 code 가 불량은 아닌데 chegyul_fail_amount_temp 가 비어있는 경우")
             else:
                 logger.debug("get_chejan_data(9001): code를 받아오지 못함")
 
@@ -1775,35 +1708,20 @@ class open_api(QAxWidget):
 
     #   미체결 정보
     def _opt10076(self, rqname, trcode):
-        # try:
         logger.debug("func in !!! _opt10076!!!!!!!!! ")
-        chegyul_fail_amount_temp = self._get_comm_data(trcode, rqname, 0, "미체결수량")
-        logger.debug("_opt10076 미체결수량!!!")
-        logger.debug(chegyul_fail_amount_temp)
+        output_keys = ['주문번호', '종목명', '주문구분', '주문가격', '주문수량', '체결가', '체결량', '미체결수량',
+                       '당일매매수수료', '당일매매세금', '주문상태', '매매구분', '원주문번호', '주문시간', '종목코드']
+        self._data = {}
 
-        # chegyul_fail_amount_temp 비어있으면 int 변환 불가
-        if chegyul_fail_amount_temp != "":
-            self.chegyul_fail_amount = int(chegyul_fail_amount_temp)
+        for key in output_keys:
+            if key not in ('주문번호', '원주문번호', '주문시간', '종목코드'):
+                try:
+                    self._data[key] = int(self._get_comm_data(trcode, rqname, 0, key))
+                    continue
+                except ValueError:
+                    pass
 
-        else:
-            self.chegyul_fail_amount = -1
-
-        if self.chegyul_fail_amount != "":
-            self.chegyul_name = self._get_comm_data(trcode, rqname, 0, "종목명")
-            logger.debug("_opt10076 종목명!!!")
-            logger.debug(self.chegyul_name)
-
-            self.chegyul_guboon = self._get_comm_data(trcode, rqname, 0, "주문구분")
-            logger.debug("_opt10076 주문구분!!!")
-            logger.debug(self.chegyul_guboon)
-
-            self.chegyul_state = self._get_comm_data(trcode, rqname, 0, "주문상태")
-            logger.debug("_opt10076 주문상태!!!")
-            logger.debug(self.chegyul_state)
-
-
-        else:
-            logger.debug("오늘 산놈이 아닌데 chegyul_check 가 1이 된 종목이다!")
+            self._data[key] = self._get_comm_data(trcode, rqname, 0, key)
 
     def basic_db_check(self, cursor):
         check_list = ['daily_craw', 'daily_buy_list', 'min_craw']

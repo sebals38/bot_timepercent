@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 from sqlalchemy import Integer, Text
 
-ver = "#version 1.3.10"
+ver = "#version 1.3.11"
 print(f"collector_api Version: {ver}")
 
 import datetime
@@ -188,7 +188,7 @@ class collector_api():
 
         for i in range(num):
             # check_item 확인
-            if int(target_code[i][2]) != 0:
+            if int(target_code[i][2]) in (1, 3):
                 continue
 
             code = target_code[i][0]
@@ -279,26 +279,6 @@ class collector_api():
             ignore_index=True
         ).drop_duplicates(subset=['code', 'code_name'])
         self._stock_to_sql(stock_item_all_df, "item_all")
-
-        ### stock_item_all이 제대로 생성되는지 확인하는 코드
-        # union_frags = []
-        # alias_num = 0
-        # for _type, data in stock_data.items():
-        #     if _type not in excluded_tables:
-        #         union_frags.append(f"SELECT a{alias_num}.code_name FROM daily_buy_list.stock_{_type} a{alias_num}")
-        #         alias_num += 1
-        # union_query = '\nUNION ALL\n'.join(union_frags)
-        # testing_query = f"SELECT count(code_name) FROM ({union_query}) b " \
-        #                 f"WHERE code_name != '' or code_name != null"
-        #
-        # stock_union_count = self.engine_JB.execute(testing_query).fetchall()
-        # sia_count = self.engine_JB.execute(f"SELECT count(*) FROM daily_buy_list.stock_item_all").fetchall()
-        #
-        # assert sia_count == stock_union_count, "stock_item_all does not contain all data."
-        ###
-
-        sql = "UPDATE setting_data SET code_update='%s' limit 1"
-        self.engine_JB.execute(sql % (self.open_api.today))
 
     def _get_code_list_by_market(self, market_num):
         codes = self.open_api.dynamicCall(f'GetCodeListByMarket("{market_num}")')
@@ -427,15 +407,20 @@ class collector_api():
         df = self.open_api.get_total_data(code, code_name, self.open_api.today)
         oldest_row = df.iloc[-1]
         check_row = None
+
+        check_daily_crawler_sql = """
+            UPDATE  daily_buy_list.stock_item_all SET check_daily_crawler = '4' WHERE code = '{}'
+        """
+
         if self.engine_JB.dialect.has_table(self.open_api.engine_daily_craw, code_name):
             check_row = self.open_api.engine_daily_craw.execute(f"""
                 SELECT * FROM `{code_name}` WHERE date = '{oldest_row['date']}' LIMIT 1
             """).fetchall()
+        else:
+            self.engine_JB.execute(check_daily_crawler_sql.format(code))
 
-        reset = False
         if check_row and check_row[0]['close'] != oldest_row['close']:
             logger.info(f'{code} {code_name}의 액면분할/증자 등의 이유로 수정주가가 달라져서 처음부터 다시 콜렉팅')
-            reset = True
             # daily_craw 삭제
             logger.info('daily_craw와 min_craw 삭제 중..')
             commands = [
@@ -447,6 +432,11 @@ class collector_api():
                 self.open_api.engine_daily_buy_list.execute(com)
             logger.info('삭제 완료')
             df = self.open_api.get_total_data(code, code_name, self.open_api.today)
+            self.engine_JB.execute(check_daily_crawler_sql.format(code))
+
+        check_daily_crawler = self.engine_JB.execute(f"""
+            SELECT check_daily_crawler FROM daily_buy_list.stock_item_all WHERE code = '{code}'
+        """).fetchall()[0].check_daily_crawler
 
         df_temp = DataFrame(df,
                             columns=['date', 'check_item', 'code', 'code_name', 'd1_diff_rate', 'close', 'open', 'high',
@@ -518,7 +508,7 @@ class collector_api():
         if self.engine_JB.dialect.has_table(self.open_api.engine_daily_craw, code_name):
             df_temp = df_temp[df_temp.date > self.open_api.get_daily_craw_db_last_date(code_name)]
 
-        if len(df_temp) == 0:
+        if len(df_temp) == 0 and check_daily_crawler != '4':
             logger.debug("이미 daily_craw db의 " + code_name + " 테이블에 콜렉팅 완료 했다! df_temp가 비었다!!")
 
             # 이렇게 안해주면 아래 프로세스들을 안하고 바로 넘어가기때문에 그만큼 tr 조회 하는 시간이 짧아지고 1초에 5회 이상의 조회를 할 수 가있다 따라서 비었을 경우는 sleep해줘야 안멈춘다
@@ -539,7 +529,7 @@ class collector_api():
                  'vol5', 'vol10', 'vol20', 'vol40', 'vol60', 'vol80', 'vol100', 'vol120']].fillna(0).astype(int)
 
         df_temp.to_sql(name=code_name, con=self.open_api.engine_daily_craw, if_exists='append')
-        if reset:
+        if check_daily_crawler == '4':
             logger.info(f'daily_craw.{code_name} 업데이트 완료 {code}')
             logger.info('daily_buy_list 업데이트 중..')
             dbl_dates = self.open_api.engine_daily_buy_list.execute("""

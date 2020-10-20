@@ -23,21 +23,21 @@ class Trader(QMainWindow):
         self.open_api.py_gubun = "trader"
         ################ 모의, 실전 ####################
         # 장시작 시간 설정
-        # self.market_start_time = QTime(9, 0, 0)
-        # # 장마감 시간 설정
-        # self.market_end_time = QTime(15, 30, 0)
-        # # 매수를 몇 시 까지 할지 설정. (시, 분, 초)
-        # self.buy_end_time = QTime(9, 6, 0)
+        self.market_start_time = QTime(9, 0, 0)
+        # 장마감 시간 설정
+        self.market_end_time = QTime(15, 30, 0)
+        # 매수를 몇 시 까지 할지 설정. (시, 분, 초)
+        self.buy_end_time = QTime(9, 6, 0)
 
         ############################################
 
         ################ 테스트용 ###################
-        # # 장시작 시간 설정
-        self.market_start_time = QTime(0, 0, 0)
-        # 장마감 시간 설정
-        self.market_end_time = QTime(23, 59, 0)
-        # 매수를 몇 시 까지 할지 설정. (시, 분, 초)
-        self.buy_end_time = QTime(23, 59, 0)
+        # 장시작 시간 설정
+        # self.market_start_time = QTime(0, 0, 0)
+        # # 장마감 시간 설정
+        # self.market_end_time = QTime(23, 59, 0)
+        # # 매수를 몇 시 까지 할지 설정. (시, 분, 초)
+        # self.buy_end_time = QTime(23, 59, 0)
 
         # ############################################
 
@@ -115,9 +115,16 @@ class Trader(QMainWindow):
         logger.debug("market_time_check!!!")
         self.current_time = QTime.currentTime()
         if self.current_time > self.market_start_time and self.current_time < self.market_end_time:
+            logger.debug('''장시간입니다. 테스트하실 경우는 trader.py 파일의 variable_setting 함수에서
+                     ### 모의, 실전 ### 부분을 주석 처리하시고
+                     ### 테스트용 ### 부분의 주석을 풀어주시기 바랍니다.
+                     실제로 모의/실전 투자 시 반드시 variable_setting을 원복해 주셔야 합니다.  ''')
             return True
         else:
-            print("end!!!")
+            logger.debug('''장시간이 아닙니다.테스트하실 경우는 trader.py 파일의 variable_setting 함수에서
+                     ### 모의, 실전 ### 부분을 주석 처리하시고
+                     ### 테스트용 ### 부분의 주석을 풀어주시기 바랍니다.
+                     실제로 모의/실전 투자 시 반드시 variable_setting을 원복해 주셔야 합니다. ''')
             return False
 
     # 매수 설정 시간 체크

@@ -109,7 +109,7 @@ class simulator_func_mysql:
         ###!@####################################################################################################################
         # 아래 부터는 알고리즘 별로 별도의 설정을 해주는 부분
 
-        if self.simul_num in (1, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 16):
+        if self.simul_num in (1, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18):
             # 시뮬레이팅 시작 일자(분 별 시뮬레이션의 경우 최근 1년 치 데이터만 있기 때문에 start_date 조정 필요)
             self.simul_start_date = "20190101"
 
@@ -222,6 +222,14 @@ class simulator_func_mysql:
 
             elif self.simul_num == 16:
                 self.db_to_realtime_daily_buy_list_num = 11
+
+            elif self.simul_num == 17:
+                self.db_to_realtime_daily_buy_list_num = 12
+            elif self.simul_num == 18:
+                self.db_to_realtime_daily_buy_list_num = 13
+                # stock_finance에 데이터가 쌓인 시점의 다음날로 self.simul_start_date 를 설정
+                self.simul_start_date = "20201016"
+
 
         elif self.simul_num == 2:
             # 시뮬레이팅 시작 일자
@@ -771,6 +779,40 @@ class simulator_func_mysql:
                   "AND EXISTS (SELECT null FROM stock_etf ETF WHERE YES_DAY.code=ETF.code) " \
                   f"AND close < {self.invest_unit} " \
                   "GROUP BY code"
+
+            realtime_daily_buy_list = self.engine_daily_buy_list.execute(sql).fetchall()
+
+        elif self.db_to_realtime_daily_buy_list_num == 12:
+            sql = f'''
+                SELECT day.* FROM `{date_rows_yesterday}` day, stock_info info
+                WHERE day.code = info.code
+                AND info.stock_market IN ("거래소", "코스닥")
+                AND info.category0 IN ("우량기업", "신성장기업")
+                AND info.audit = '정상'
+                AND info.margin <= 40
+                AND info.remarks NOT LIKE "%관리종목%"
+                AND info.remarks NOT LIKE "%거래정지%"
+            '''
+            realtime_daily_buy_list = self.engine_daily_buy_list.execute(sql).fetchall()
+
+        elif self.db_to_realtime_daily_buy_list_num == 13:
+            sql = f'''
+                SELECT DAY.*
+                FROM `{date_rows_yesterday}` DAY, stock_finance FIN, stock_info INF
+                WHERE DAY.code = FIN.code
+                AND DAY.code = INF.code
+                AND FIN.date = '{date_rows_yesterday}'
+                AND FIN.PER != '' AND FIN.PBR != ''
+                AND DAY.close < {self.invest_unit}
+                AND INF.stock_market in ('거래소', '코스닥')
+                AND INF.category0 IN ("우량기업", "신성장기업")
+                AND INF.audit = '정상'
+                AND INF.margin <= 40
+                AND INF.remarks NOT LIKE "%관리종목%"
+                AND INF.remarks NOT LIKE "%거래정지%"
+                ORDER BY FIN.PER+FIN.PBR
+                LIMIT 100;
+            '''
             realtime_daily_buy_list = self.engine_daily_buy_list.execute(sql).fetchall()
 
         ######################################################################################################################################################################################

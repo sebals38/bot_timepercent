@@ -87,9 +87,8 @@ class collector_api():
         # min_craw db (분별 데이터) 업데이트
         if rows[0][8] != self.open_api.today:
             self.min_crawler_check()
-
-        self.kind.craw()
         self._create_stock_finance()
+        self.kind.craw()
 
         logger.debug("collecting 작업을 모두 정상적으로 마쳤습니다.")
 

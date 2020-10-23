@@ -88,5 +88,8 @@
 from sqlalchemy import Integer, Text, Float
 
 
-3. collector_api.py 의 code_update_check 함수의 self.kind.craw() 아래에 코드 추가(콜렉터에서 _create_stock_finance 함수 호출하도록)
+3. collector_api.py 의 code_update_check 함수의 self.kind.craw() 위에 코드 추가(콜렉터에서 _create_stock_finance 함수 호출하도록)
+
+**** self.kind.craw() 아래에 추가해도 문제는 없지만 위에 추가하는게 콜렉터 돌릴 때 시간적으로 더 효율적입니다.
+
 self._create_stock_finance()

@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 from sqlalchemy import Integer, Text, Float
 
-ver = "#version 1.3.12"
+ver = "#version 1.3.13"
 print(f"collector_api Version: {ver}")
 
 import datetime
@@ -110,7 +110,7 @@ class collector_api():
             # 첫 번째 파라미터는 여기서는 의미가 없다.
             # 두 번째 파라미터에 오늘 일자를 넣는 이유는 매수를 하는 시점인 내일 기준으로 date_rows_yesterday가 오늘 이기 때문
             self.open_api.sf.db_to_realtime_daily_buy_list(self.open_api.today, self.open_api.today,
-                                                           len(self.open_api.sf.date_rows) - 1)
+                                                           len(self.open_api.sf.date_rows))
 
             # all_item_db에서 open, clo5~120, volume 등을 오늘 일자 데이터로 업데이트 한다.
             self.open_api.sf.update_all_db_by_date(self.open_api.today)

@@ -300,7 +300,7 @@ class simulator_func_mysql:
             # 실전/모의 봇 돌릴 때 매수하는 순간 종목의 최신 종가 보다 -2% 이하로 떨어진 경우 사지 않도록 하는 설정(변경 가능)
             self.invest_min_limit_rate = 0.98
         else:
-            logger.error("해당 되는 알고리즘이 없습니다. 알고리즘을 추가해주세요. ")
+            logger.error(f"입력 하신 {self.simul_num}번 알고리즘에 대한 설정이 없습니다. simulator_func_mysql.py 파일의 variable_setting함수에 알고리즘을 설정해주세요. ")
             sys.exit(1)
 
         #########################################################################################################################
@@ -817,7 +817,7 @@ class simulator_func_mysql:
 
         ######################################################################################################################################################################################
         else:
-            print("self.db_to_realtime_daily_buy_list_num 설정이 비었습니다. variable_setting 함수에서 self.db_to_realtime_daily_buy_list_num 을 확인해주세요.")
+            print(f"{self.simul_num}번 알고리즘에 대한 self.db_to_realtime_daily_buy_list_num 설정이 비었습니다. variable_setting 함수에서 self.db_to_realtime_daily_buy_list_num 을 확인해주세요.")
             sys.exit(1)
         # realtime_daily_buy_list 에 종목이 하나라도 있다면, 즉 매수할 종목이 하나라도 있다면 아래 로직을 들어간다.
         if len(realtime_daily_buy_list) > 0:
@@ -1360,7 +1360,7 @@ class simulator_func_mysql:
            sell_list = self.engine_simulator.execute(sql % (self.diff_point * (-1), self.losscut_point)).fetchall()
         ##################################################################################################################################################################################################################
         else:
-            print("self.sell_list_num 설정이 비었습니다. variable_setting 함수에서 self.sell_list_num을 확인해주세요.")
+            print(f"{self.simul_num}번 알고리즘에 대한 self.sell_list_num 설정이 비었습니다. variable_setting 함수에서 self.sell_list_num을 확인해주세요.")
             sys.exit(1)
 
         return sell_list

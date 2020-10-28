@@ -110,10 +110,6 @@ class open_api(QAxWidget):
             self.invest_unit = 0
             self.db_to_all_item(0, 0, 0, 0, 0)
             self.delete_all_item("0")
-        if not self.sf.is_simul_table_exist(self.db_name, "setting_data"):
-            logger.debug("setting_data 없어서 생성!!")
-
-            self.create_table_setting_date()
 
         # setting_data에 invest_unit값이 설정 되어 있는지 확인
         if not self.check_set_invest_unit():
@@ -187,18 +183,6 @@ class open_api(QAxWidget):
 
         self.py_gubun = False
 
-    # setting_data 테이블 만드는 함수
-    def create_table_setting_date(self):
-        logger.debug("create_table_setting_date 함수에 들어왔습니다!!!")
-        df_setting_data_temp = {'index': [0], 'loan_money': [0], 'limit_money': [0], 'invest_unit': [0],
-                                'max_invest_unit': [0], 'min_invest_unit': [0], 'set_invest_unit': [0],
-                                'code_update': [0],
-                                'today_buy_stop': [0], 'jango_data_db_check': [0], 'possessed_item': [0],
-                                'today_profit': [0], 'final_chegyul_check': [0], 'db_to_buy_list': [0],
-                                'today_buy_list': [0],
-                                'daily_crawler': [0], 'daily_buy_list': [0]}
-        df_setting_data = DataFrame(df_setting_data_temp)
-        df_setting_data.to_sql('setting_data', self.engine_JB, if_exists='replace')
 
     # 봇 데이터 베이스를 만드는 함수
     def create_database(self, cursor):

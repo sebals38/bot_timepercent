@@ -149,6 +149,61 @@ LIMIT 100;
 
 
 
+
+
+
+
+
+# [보충 설명]
+# 일반적으로 저PER, 저PBR 전략은 위와 같이 단순히 PER + PBR 이 아닌 PER 와 PBR의 순위를 합산하여 오름차순 정렬을 하는 방법을 사용합니다.
+# rank 내장 함수를 이용하여 PER 순위 계산 하는 방법
+# as 는 rank() over(order by FIN.PER) 를 RANK_PER라는 별칭으로 사용하겠다는 의미
+SELECT FIN.code, FIN.PER, rank() over(order by FIN.PER) as RANK_PER
+FROM  stock_finance FIN
+WHERE FIN.date = '20201015'
+AND FIN.PER != '' AND FIN.PBR != '';
+
+# PER, PBR 모두 순위 계산 하는 방법
+SELECT FIN.code, FIN.PER, FIN.PBR, rank() over(order by FIN.PER) as RANK_PER, rank() over(order by FIN.PBR) as RANK_PBR
+FROM  stock_finance FIN
+WHERE FIN.date = '20201015'
+AND FIN.PER != '' AND FIN.PBR != '';
+
+# PER 순위 + PBR 순위 오름차순 정렬 하는 방법
+SELECT FIN.code, FIN.PER, FIN.PBR, rank() over(order by FIN.PER) + rank() over(order by FIN.PBR) as SUM_PERPBR
+FROM  stock_finance FIN, `20201015` DAY
+WHERE FIN.date = '20201015'
+AND FIN.PER != '' AND FIN.PBR != ''
+AND FIN.code = DAY.code
+ORDER BY (rank() over(order by FIN.PER)) + (rank() over(order by FIN.PBR));
+
+
+# 13번 알고리즘 적용 시 ? => ORDER BY FIN.PER+FIN.PBR 을
+# 아래와 같이 ORDER BY (rank() over(order by FIN.PER)) + (rank() over(order by FIN.PBR)) 로 변경 해주면 됩니다.
+SELECT DAY.*
+FROM `20201015` DAY, stock_finance FIN, stock_info INF
+WHERE DAY.code = FIN.code
+AND DAY.code = INF.code
+AND FIN.date = '20201015'
+AND FIN.PER != '' AND FIN.PBR != ''
+AND DAY.close < 1000000
+AND INF.stock_market in ('거래소', '코스닥')
+AND INF.category0 IN ("우량기업", "신성장기업")
+AND INF.audit = '정상'
+AND INF.margin <= 40
+AND INF.remarks NOT LIKE "%관리종목%"
+AND INF.remarks NOT LIKE "%거래정지%"
+ORDER BY (rank() over(order by FIN.PER)) + (rank() over(order by FIN.PBR))
+LIMIT 100;
+
+
+
+
+
+
+
+
+
 # TIP) pycharm에서 쿼리 에러 발생 시 콘솔에 찍혀 있는
 #  쿼리문을 그대로 가져와서 실행 해보면 에러 구문을 금방 찾는다
 

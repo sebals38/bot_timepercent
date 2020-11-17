@@ -1050,12 +1050,14 @@ class collector_api():
             '매출액': 'gross_profit', '영업이익': 'operation_income', '당기순이익': 'net_income', '250최고': '250highest',
             '250최저': '250lowest', '상한가': 'upper_limit', '하한가': 'lower_limit', '기준가': 'standard_price',
             '250최고가일': '250highest_date', '250최저가일': '250lowest_date', '250최저가대비율': '250lowest_rate',
-            '거래대비': 'trading_rate', '유통주식': 'outstanding_stock', '유통비율': 'outstanding_rate'
+            '거래대비': 'trading_rate', '유통주식': 'outstanding_stock', '유통비율': 'outstanding_rate', 'PER': 'PER',
+            'PBR': 'PBR', 'EV': 'EV', 'BPS': 'BPS', 'EPS': 'EPS', 'ROE': 'ROE'
         }
 
         # column_names 에 있는 key 중 Text 형으로 저장 해야 할 리스트
         text_columns = ['종목코드', '결산월', '250최고가일', '250최저가일']
-
+        # +, -기호가 추세를 나타내는 칼럼(영상 촬영 후 추가)
+        signed_columns = ['거래대비', '기준가', '하한가', '250최고', '250최저', '연중최저']
         dtype = {}
         for k, v in column_names.items():  # 각 칼럼별 자료형 타입을 정한다. 아래 df.to_sql 에서 활용
             if k in text_columns:
@@ -1087,16 +1089,15 @@ class collector_api():
             data['date'].append(today)  # 날짜 칼럼 추가
             fin_data = self.open_api.get_stock_finance(c)
             for k, v in fin_data.items():
-                if v and (k not in text_columns):  # v(value)가 존재하고, text_columns에 fin_data의 k(key)가 없으면
-                    converted = abs(float(v))  # 수치 데이터의 +, -기호를 떼기 위함
+                if v and (k in signed_columns):  # v(value)가 존재하고, signed_columns(영상 촬영 후 수정)에 fin_data의 k(key)가 있으면
+                    converted = abs(float(v))  # +, -기호가 추세를 나타낼 경우 떼기 위함
                 else:
                     converted = v
                 # dict의 get() : 딕셔너리의 key 값에 해당하는 value 값을 가져온다.
                 data[column_names.get(k, k)].append(converted)
             logger.debug(f'{c} 금융 데이터 요청중...')
 
-            if item_count == chunk_size or i == len(
-                    stock_codes_list) - 1:  # chunk_size 단위로 저장 83개는 max_api_call 999에 최적화
+            if item_count == chunk_size or i == len(stock_codes_list) - 1:  # chunk_size 단위로 저장 83개는 max_api_call 999에 최적화
                 df = DataFrame.from_dict(data)
                 logger.debug('DB에 넣는 중...')
                 logger.debug(df)

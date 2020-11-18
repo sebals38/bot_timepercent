@@ -80,6 +80,7 @@ class collector_api():
             # 매도 했는데 bot이 꺼져있을때 매도해서 all_item_db에 sell_date에 오늘 일자가 안 찍힌 종목들에 date 값을 넣어 준다. (이때 sell_rate는 0.0으로 찍힌다.)
             self.open_api.final_chegyul_check()
 
+        self._create_stock_finance()
         # 내일 매수 종목 업데이트 (realtime_daily_buy_list)
         if rows[0][6] != self.open_api.today:
             self.realtime_daily_buy_list_check()
@@ -87,7 +88,6 @@ class collector_api():
         # min_craw db (분별 데이터) 업데이트
         if rows[0][8] != self.open_api.today:
             self.min_crawler_check()
-        self._create_stock_finance()
         self.kind.craw()
 
         logger.debug("collecting 작업을 모두 정상적으로 마쳤습니다.")
@@ -1068,12 +1068,18 @@ class collector_api():
         # 현재 stock_finance에 저장한 데이터 가져오기(중복 체크를 위해)
         # 만약 table_name('stock_finance') 가 daily_buy_list DB에 존재한다면 IF문 안으로 들어간다.
         existing_data = {}
+
+        # (영상 촬영 후 아래 세 라인 추가) 모든 데이터 존재 여부를 파악하는게 아닌 10일치만 비교하기 위함
+        strformat = "%Y%m%d"
+        extract_from = datetime.date.today() - timedelta(days=10)
+        extract_from = extract_from.strftime(strformat)
+
         if self.open_api.engine_daily_buy_list.dialect.has_table(self.open_api.engine_daily_buy_list, table_name):
             existing_data = self.open_api.engine_daily_buy_list.execute(f"""
-                SELECT date, code FROM {table_name}
+                SELECT date, code FROM {table_name} WHERE date >= {extract_from}
             """).fetchall()
 
-        today = datetime.date.today().strftime("%Y%m%d")
+        today = datetime.date.today().strftime(strformat)
 
         data = defaultdict(list)  # collections.defaultdict
 
@@ -1085,7 +1091,7 @@ class collector_api():
         for i, c in enumerate(stock_codes_list):  # index를 얻기위해 enumerate() 사용
             if (today, c) in existing_data:  # 이미 stock_finance에 넣은 데이터는 중복해서 넣지 않도록
                 continue
-            today = datetime.date.today().strftime("%Y%m%d")
+            today = datetime.date.today().strftime(strformat)
             data['date'].append(today)  # 날짜 칼럼 추가
             fin_data = self.open_api.get_stock_finance(c)
             for k, v in fin_data.items():

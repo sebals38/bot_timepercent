@@ -1,4 +1,4 @@
-ver = "#version 1.3.6"
+ver = "#version 1.3.7"
 print(f"simulator_func_mysql Version: {ver}")
 import sys
 is_64bits = sys.maxsize > 2**32
@@ -888,6 +888,11 @@ class simulator_func_mysql:
         # len_df_realtime_daily_buy_list에 다가 0을 넣는다.
         else:
             self.len_df_realtime_daily_buy_list = 0
+            #강의 촬영 후 추가 코드 (매수 조건에 맞는 종목이 하나도 없을 경우 realtime_daily_buy_list 를 비워준다)
+            if self.engine_simulator.dialect.has_table(self.engine_simulator, "realtime_daily_buy_list"):
+                self.engine_simulator.execute("""
+                    DELETE FROM realtime_daily_buy_list 
+                """)
 
     # 현재의 주가를 all_item_db에 있는 보유한 종목들에 대해서 반영 한다.
     def db_to_all_item_present_price_update(self, code_name, d1_diff_rate, close, open, high, low, volume, clo5, clo10, clo20,

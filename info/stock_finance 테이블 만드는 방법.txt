@@ -32,7 +32,7 @@
         # column_names 에 있는 key 중 Text 형으로 저장 해야 할 리스트
         text_columns = ['종목코드', '결산월', '250최고가일', '250최저가일']
         # +, -기호가 추세를 나타내는 칼럼 (영상 촬영 후 추가)
-        signed_columns = ['거래대비', '기준가', '하한가', '250최고', '250최저', '연중최저']
+        signed_columns = ['거래대비', '기준가', '하한가', '250최고', '250최저', '연중최고', '연중최저', '신용비율', '외인소진률']
         dtype = {}
         for k, v in column_names.items():  # 각 칼럼별 자료형 타입을 정한다. 아래 df.to_sql 에서 활용
             if k in text_columns:
@@ -80,6 +80,7 @@
 
             if item_count == chunk_size or i == len(stock_codes_list) - 1:  # chunk_size 단위로 저장 83개는 max_api_call 999에 최적화
                 df = DataFrame.from_dict(data)
+                df.replace('', None)
                 logger.debug('DB에 넣는 중...')
                 logger.debug(df)
                 df.to_sql(

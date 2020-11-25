@@ -1095,7 +1095,9 @@ class collector_api():
             data['date'].append(today)  # 날짜 칼럼 추가
             fin_data = self.open_api.get_stock_finance(c)
             for k, v in fin_data.items():
-                if v and (k in signed_columns):  # v(value)가 존재하고, signed_columns(영상 촬영 후 수정)에 fin_data의 k(key)가 있으면
+                if v == '':  # 영상 촬영 후 추가되었습니다. 비어있는 문자열일 경우 None으로 대체
+                    converted = None
+                elif v and (k in signed_columns):  # v(value)가 존재하고, signed_columns(영상 촬영 후 수정)에 fin_data의 k(key)가 있으면
                     converted = abs(float(v))  # +, -기호가 추세를 나타낼 경우 떼기 위함
                 else:
                     converted = v
@@ -1105,7 +1107,6 @@ class collector_api():
 
             if item_count == chunk_size or i == len(stock_codes_list) - 1:  # chunk_size 단위로 저장 83개는 max_api_call 999에 최적화
                 df = DataFrame.from_dict(data)
-                df.replace('', None)
                 logger.debug('DB에 넣는 중...')
                 logger.debug(df)
                 df.to_sql(

@@ -73,7 +73,7 @@ class collector_api():
         if rows[0][9] != self.open_api.today:
             self.daily_buy_list_check()
 
-        # [촬영 후 순서 변경] daily_buy_list db업데이트 이 후에 들어가야함
+        # daily_buy_list db업데이트 이 후에 들어가야함
         if rows[0][4] != self.open_api.today:
             # 매수했는데 all_item_db에 없는 종목들 넣어준다.
             self.open_api.chegyul_check()

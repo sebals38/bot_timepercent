@@ -62,24 +62,16 @@
 우측 수업노트 공지 사항을 확인 해주세요!!
 
 
-
-
-
-
-
-
-
+*** 공지사항 코드 버전 확인
 
 1. cf파일의 use_etf = True로 변경
 
-2. daily_buy_list의 날짜 테이블을 모두 삭제 해야한다.
-   => 현재 trader.py를 돌리고 계신 분들은 주말에 몰아서 daily_buy_list를 받는 것을 추천 드립니다.
-   (시간이 너무 오래걸리면 cf 파일에서 start_daily_buy_list 변수의 날짜를 최근으로 변경해서 차근 차근 받는 방법도 있습니다)
+2. 만약 오늘 콜렉터를 돌리셨다면 setting_data 테이블에 code_update, daily_crawler, min_crawler, today_buy_list 컬럼 모두 0 넣기 
 
-3. 이후에 콜렉터를 돌리면 (code_update, daily_crawler, min_crawler, today_buy_list 컬럼 모두 0 넣기)
-daily_buy_list DB의 stock_item_all 테이블에 etf종목들이 추가가 된다.
+3. 이후 콜렉터 실행 
 
-4. daily_buy_list DB에 stock_etf 테이블이 추가가 된다.
+4. daily_buy_list DB의 stock_item_all 테이블에 etf종목들이 추가가 된다.
+그리고 daily_buy_list DB에 stock_etf 테이블이 추가가 된다.
 
 5. simulator_func_mysql.py 에서 매수함수(db_to_realtime_daily_buy_list)
 에 기존에 있던 알고리즘들에 not exist stock_etf를 추가해줘야한다.
@@ -219,6 +211,10 @@ ex)
                 elif self.simul_num == 14:
                     self.trade_check_num = 3
                     self.rarry_k = 0.5
+
+            elif self.simul_num == 15:
+                # 향후 업데이트 예정 
+
             elif self.simul_num == 16:
                 self.db_to_realtime_daily_buy_list_num = 11
 

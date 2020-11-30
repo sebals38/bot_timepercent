@@ -302,7 +302,7 @@ class Openapi(QAxWidget):
             if err_code == 0:
                 logger.debug("connected")
             else:
-                logger.debug("disconnected")
+                logger.debug(f"disconnected. err_code : {err_code}")
             self.login_event_loop.exit()
         except Exception as e:
             logger.critical(e)

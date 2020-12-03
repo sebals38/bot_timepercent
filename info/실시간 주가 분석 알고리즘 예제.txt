@@ -207,10 +207,10 @@
               2. def trading_by_min 함수에 아래 내용 추가
                 self.print_info(date_rows_today) 부분 바로 아래에 아래 로직 추가
                 ````````````````````````````````````````````````````````````
-                 # all_item_db가 존재하고, 현재 보유 중인 종목이 있다면 아래 로직을 들어간다.
-                 if self.is_simul_table_exist(self.db_name, "all_item_db") and len(self.get_data_from_possessed_item()) != 0:
-                    # 보유 중인 종목들의 주가를 일별로 업데이트 하는 함수(분별 종가 업데이트 이외에 clo5, clo20등등의 값을 업데이트)
-                    self.update_all_db_by_date(date_rows_today)
+                # all_item_db가 존재하고, 현재 보유 중인 종목이 있다면 아래 로직을 들어간다.
+                if self.is_simul_table_exist(self.db_name, "all_item_db") and len(self.get_data_from_possessed_item()) != 0:
+                    # 보유 중인 종목들의 주가를 일별로 업데이트 하는 함수(option 이 OPEN 이면 OPEN가만 업데이트)
+                    self.update_all_db_by_date(date_rows_today, option='OPEN')
 
                 ````````````````````````````````````````````````````````````
 
